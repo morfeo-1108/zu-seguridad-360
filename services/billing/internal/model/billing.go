@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"time"
 )
 
@@ -51,7 +52,7 @@ type Subscription struct {
 // Invoice bills the professional/tenant (ZU360's actual customer), not an
 // individual client company in their portfolio.
 type Invoice struct {
-	ID             uuid.UUID              `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ID             uuid.UUID              `gorm:"type:uuid;primaryKey" json:"id"`
 	TenantID       uuid.UUID              `gorm:"type:uuid;not null;index" json:"tenant_id"`
 	SubscriptionID uuid.UUID              `gorm:"type:uuid;not null" json:"subscription_id"`
 	DIANNumber     string                 `gorm:"uniqueIndex;size:50" json:"dian_number"`
@@ -73,3 +74,13 @@ type Invoice struct {
 
 func (Subscription) TableName() string { return "subscriptions" }
 func (Invoice) TableName() string      { return "invoices" }
+
+// BeforeCreate generates the primary key in Go rather than relying on a
+// Postgres-only gen_random_uuid() column default — portable across dialects
+// (and required for the sqlite-backed integration tests in this package).
+func (i *Invoice) BeforeCreate(tx *gorm.DB) error {
+	if i.ID == uuid.Nil {
+		i.ID = uuid.New()
+	}
+	return nil
+}

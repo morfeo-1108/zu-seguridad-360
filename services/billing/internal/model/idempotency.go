@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // IdempotencyKey evita procesar dos veces la misma operación de cobro.
@@ -20,7 +21,7 @@ func (IdempotencyKey) TableName() string { return "idempotency_keys" }
 
 // OutboxEvent is the persistence contract for a future authenticated publisher.
 type OutboxEvent struct {
-	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	ID          uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
 	TenantID    uuid.UUID  `gorm:"type:uuid;not null;index" json:"tenant_id"`
 	Exchange    string     `gorm:"size:120" json:"exchange"`
 	RoutingKey  string     `gorm:"size:120" json:"routing_key"`
@@ -32,6 +33,17 @@ type OutboxEvent struct {
 }
 
 func (OutboxEvent) TableName() string { return "outbox_events" }
+
+// BeforeCreate generates the primary key in Go rather than relying on a
+// Postgres-only gen_random_uuid() column default (AutoMigrate with that
+// default in the DDL fails outright on sqlite, which the tests in this
+// package use).
+func (e *OutboxEvent) BeforeCreate(tx *gorm.DB) error {
+	if e.ID == uuid.Nil {
+		e.ID = uuid.New()
+	}
+	return nil
+}
 
 // JSONB tipo auxiliar para columnas jsonb de PostgreSQL.
 type JSONB map[string]interface{}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/zu-seguridad/billing/internal/model"
+	"github.com/zu-seguridad/billing/internal/wompi"
 	"gorm.io/gorm"
 	"log"
 	"time"
@@ -31,9 +32,53 @@ const IVARate = 0.19
 var ErrCompanyQuotaExceeded = errors.New("adding this company would exceed the plan's company quota")
 var ErrNoActiveSubscription = errors.New("tenant has no active subscription")
 
-type BillingService struct{ db *gorm.DB }
+type BillingService struct {
+	db    *gorm.DB
+	wompi *wompi.Client
+}
 
-func NewBillingService(db *gorm.DB) *BillingService { return &BillingService{db: db} }
+func NewBillingService(db *gorm.DB, wompiClient *wompi.Client) *BillingService {
+	return &BillingService{db: db, wompi: wompiClient}
+}
+
+// ChargeInvoice attempts a real Wompi charge for a pending invoice. It never
+// marks an invoice paid based on assumption — only on an APPROVED response
+// from Wompi, recorded via the invoice's own status field. Declined/errored
+// attempts are recorded too, so a human can see exactly what Wompi said
+// instead of the invoice silently staying "pending" forever.
+func (s *BillingService) ChargeInvoice(ctx context.Context, invoiceID uuid.UUID, paymentMethod map[string]interface{}, acceptanceToken string) error {
+	var invoice model.Invoice
+	if err := s.db.WithContext(ctx).Where("id = ?", invoiceID).First(&invoice).Error; err != nil {
+		return err
+	}
+	if invoice.Status != model.InvoiceStatusPending {
+		return fmt.Errorf("invoice %s is not pending (status=%s)", invoiceID, invoice.Status)
+	}
+
+	resp, err := s.wompi.CreateTransaction(ctx, wompi.CreateTransactionInput{
+		AmountInCents:   invoice.Total,
+		Currency:        "COP",
+		Reference:       invoice.ID.String(),
+		PaymentMethod:   paymentMethod,
+		AcceptanceToken: acceptanceToken,
+	})
+	if err != nil {
+		return fmt.Errorf("wompi charge failed: %w", err)
+	}
+
+	status := model.InvoiceStatusPending
+	switch resp.Data.Status {
+	case "APPROVED":
+		status = model.InvoiceStatusPaid
+	case "DECLINED", "ERROR", "VOIDED":
+		status = model.InvoiceStatusOverdue
+	}
+	updates := map[string]interface{}{"wompi_tx_id": resp.Data.ID, "status": status}
+	if status == model.InvoiceStatusPaid {
+		updates["paid_at"] = time.Now().UTC()
+	}
+	return s.db.WithContext(ctx).Model(&invoice).Where("id = ?", invoiceID).Updates(updates).Error
+}
 
 // CreateSubscription provisions one subscription per tenant/professional. A
 // tenant with an existing subscription must cancel/upgrade instead of
@@ -186,8 +231,10 @@ func (s *BillingService) WasProcessed(ctx context.Context, key string) bool {
 
 // MarkProcessed registra que una operación se completó.
 func (s *BillingService) MarkProcessed(ctx context.Context, key string) error {
+	// time.Now() in Go rather than NOW() in SQL — NOW() is Postgres-specific
+	// and this package's tests run against sqlite.
 	return s.db.WithContext(ctx).Exec(
-		"INSERT INTO idempotency_keys (key, processed_at) VALUES (?, NOW()) ON CONFLICT (key) DO NOTHING",
-		key,
+		"INSERT INTO idempotency_keys (key, processed_at) VALUES (?, ?) ON CONFLICT (key) DO NOTHING",
+		key, time.Now().UTC(),
 	).Error
 }

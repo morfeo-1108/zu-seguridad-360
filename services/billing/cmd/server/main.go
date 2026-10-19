@@ -13,6 +13,7 @@ import (
 	"github.com/zu-seguridad/billing/internal/middleware"
 	"github.com/zu-seguridad/billing/internal/model"
 	"github.com/zu-seguridad/billing/internal/service"
+	"github.com/zu-seguridad/billing/internal/wompi"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -50,10 +51,14 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok", "service": "zu-billing", "mode": "quota-check-only"})
 	})
 
-	billingSvc := service.NewBillingService(db)
-	billingH := handler.NewBillingHandler(billingSvc)
+	wompiClient := wompi.NewClient(cfg.WompiURL, cfg.WompiKey)
+	billingSvc := service.NewBillingService(db, wompiClient)
+	billingH := handler.NewBillingHandler(billingSvc, cfg.WompiEventsSecret)
 	jwt := middleware.JWTProtected(cfg)
 	app.Get("/v1/tenants/:tenantId/can-add-company", jwt, middleware.TenantScope("tenantId"), billingH.CanAddCompany)
+	// No JWT: Wompi itself calls this, authenticated only by its own event
+	// signature (verified inside the handler).
+	app.Post("/v1/webhooks/wompi", billingH.WompiWebhook)
 
 	go func() {
 		if err := app.Listen(":" + cfg.Port); err != nil {

@@ -3,19 +3,20 @@ package config
 import "os"
 
 type Config struct {
-	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey, JWTSecret string
-	AutoMigrate                                                  bool
+	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey, WompiEventsSecret, JWTSecret string
+	AutoMigrate                                                                     bool
 }
 
 func Load() *Config {
 	return &Config{
-		Port:        env("PORT", "4010"),
-		DatabaseURL: env("DATABASE_URL", "postgres://zuadmin:zupassword@postgres:5432/zu_core"),
-		RabbitMQURL: env("RABBITMQ_URL", "amqp://zurabbit:zurabbit123@rabbitmq:5672/zu_vhost"),
-		WompiURL:    env("WOMPI_URL", "https://production.wompi.co/v1"),
-		WompiKey:    env("WOMPI_KEY", ""),
-		JWTSecret:   env("JWT_SECRET", "zu-super-secret-key-change-in-prod"),
-		AutoMigrate: env("AUTO_MIGRATE", "false") == "true",
+		Port:              env("PORT", "4010"),
+		DatabaseURL:       env("DATABASE_URL", "postgres://zuadmin:zupassword@postgres:5432/zu_core"),
+		RabbitMQURL:       env("RABBITMQ_URL", "amqp://zurabbit:zurabbit123@rabbitmq:5672/zu_vhost"),
+		WompiURL:          env("WOMPI_URL", "https://production.wompi.co/v1"),
+		WompiKey:          env("WOMPI_KEY", ""),
+		WompiEventsSecret: env("WOMPI_EVENTS_SECRET", ""),
+		JWTSecret:         env("JWT_SECRET", "zu-super-secret-key-change-in-prod"),
+		AutoMigrate:       env("AUTO_MIGRATE", "false") == "true",
 	}
 }
 func env(k, d string) string {
