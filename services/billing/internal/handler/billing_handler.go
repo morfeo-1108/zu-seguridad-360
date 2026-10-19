@@ -69,8 +69,8 @@ func (h *BillingHandler) CanAddCompany(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusInternalServerError, "no fue posible verificar el cupo del plan")
 	}
 	return c.JSON(fiber.Map{
-		"allowed":        allowed,
-		"current_count":  current,
-		"max_companies":  max,
+		"allowed":       allowed,
+		"current_count": current,
+		"max_companies": max,
 	})
 }

@@ -4,7 +4,7 @@ import "os"
 
 type Config struct {
 	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey, WompiEventsSecret, JWTSecret string
-	AutoMigrate                                                                     bool
+	AutoMigrate                                                                      bool
 }
 
 func Load() *Config {
