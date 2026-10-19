@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #F6F7F4; --surface: #FFFFFF; --surface-2: #F0F2ED;
+  --border: #E3E7DD; --border-strong: #CDD2C5;
+  --text-1: #161A14; --text-2: #535A4E; --text-3: #969C8E;
+  /* Identidad de marca ZU 360 */
+  --accent: #6BA31A; --lime: #8BC34A; --graphite: #12171F; --steel: #6B7280;
+  --green: #16A34A; --amber: #D97706; --red: #DC2626;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-1); -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+@layer utilities {
+  .animate-fade-in { animation: fadeIn 0.25s ease; }
+  .animate-slide-up { animation: slideUp 0.3s ease; }
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }

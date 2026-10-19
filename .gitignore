@@ -1,0 +1,58 @@
+# Binaries
+*.exe
+*.out
+/bin/
+dist/
+
+# Go
+*/vendor/
+*.test
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+.expo/
+
+# Env files (NUNCA commitear)
+.env
+.env.local
+.env.prod
+# .env.dev si tiene secretos reales
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage
+coverage.out
+coverage.html
+htmlcov/
+
+# Docker volumes
+postgres_data/
+redis_data/

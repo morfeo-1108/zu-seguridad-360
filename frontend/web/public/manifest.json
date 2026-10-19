@@ -1,0 +1,24 @@
+{
+  "name": "ZU Seguridad Integral 360",
+  "short_name": "ZU 360",
+  "description": "Plataforma Inteligente de Salud Ocupacional — gestión SST, PHVA, drones e IA para Colombia.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12171F",
+  "theme_color": "#6BA31A",
+  "lang": "es-CO",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Inbox Maestro", "short_name": "Inbox", "url": "/dashboard/attention" },
+    { "name": "Ciclo PHVA", "short_name": "PHVA", "url": "/dashboard/management" },
+    { "name": "Flota de Drones", "short_name": "Drones", "url": "/dashboard/drones" }
+  ]
+}

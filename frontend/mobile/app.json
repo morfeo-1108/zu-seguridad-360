@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "ZU Seguridad 360",
+    "slug": "zu-seguridad-360",
+    "version": "6.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F6F3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "co.zu360.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Necesitamos acceso a la cámara para fotografiar incidentes e inspecciones.",
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para georreferenciar incidentes."
+      }
+    },
+    "android": {
+      "package": "co.zu360.app",
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": ["expo-camera", "expo-location", "expo-image-picker"]
+  }
+}

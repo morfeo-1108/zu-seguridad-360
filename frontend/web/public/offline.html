@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sin conexión — ZU 360</title>
+<style>
+  body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(155deg,#12171F,#1A2129);font-family:system-ui,sans-serif;color:#fff;}
+  .box{text-align:center;padding:32px;max-width:340px;}
+  .logo{width:64px;height:64px;border-radius:16px;background:#0E1319;display:flex;
+    align-items:center;justify-content:center;margin:0 auto 20px;font-weight:900;font-size:26px;
+    box-shadow:0 0 24px rgba(139,195,74,0.25);}
+  .logo .z{color:#8BC34A;} .logo .u{color:#C4CAD2;}
+  h1{font-size:20px;margin:0 0 8px;} p{color:#9BA3AE;font-size:14px;line-height:1.5;}
+  button{margin-top:20px;background:linear-gradient(135deg,#8BC34A,#6BA31A);color:#fff;
+    border:none;padding:11px 22px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo"><span class="z">Z</span><span class="u">U</span></div>
+    <h1>Sin conexión</h1>
+    <p>No hay conexión a internet en este momento. Tus datos están seguros; vuelve a intentarlo cuando recuperes la red.</p>
+    <button onclick="location.reload()">Reintentar</button>
+  </div>
+</body>
+</html>

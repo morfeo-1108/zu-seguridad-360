@@ -1,0 +1,26 @@
+{
+  "comment": "Política de Dead Letter Queue para ZU 360 — mensajes fallidos no se pierden",
+  "policies": [
+    {
+      "vhost": "zu_vhost",
+      "name": "dlx-all",
+      "pattern": "^zu\\.",
+      "definition": {
+        "dead-letter-exchange": "zu.dlx",
+        "message-ttl": 86400000,
+        "max-length": 100000
+      },
+      "priority": 1,
+      "apply-to": "queues"
+    }
+  ],
+  "exchanges": [
+    { "name": "zu.dlx", "vhost": "zu_vhost", "type": "topic", "durable": true }
+  ],
+  "queues": [
+    { "name": "zu.dead-letter", "vhost": "zu_vhost", "durable": true }
+  ],
+  "bindings": [
+    { "source": "zu.dlx", "vhost": "zu_vhost", "destination": "zu.dead-letter", "destination_type": "queue", "routing_key": "#" }
+  ]
+}

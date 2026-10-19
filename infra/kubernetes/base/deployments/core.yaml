@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zu-core
+  namespace: zu-system
+  labels:
+    app: zu-core
+    version: "6.0.0"
+    component: microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zu-core
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: zu-core
+        version: "6.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4001"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: zu-core
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: core
+          image: ghcr.io/zu-seguridad/core:6.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4001
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: zu-core-config
+            - secretRef:
+                name: zu-core-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: 4001
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 4001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zu-core
+  namespace: zu-system
+spec:
+  selector:
+    app: zu-core
+  ports:
+    - port: 4001
+      targetPort: 4001
+      protocol: TCP
+  type: ClusterIP

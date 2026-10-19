@@ -1,0 +1,199 @@
+{
+  "pack_id": "zu360-skills-v3",
+  "version": "3.0.0",
+  "status": "reference_only_not_runtime_enabled",
+  "jurisdiction": "Colombia (claims unverified)",
+  "count": 21,
+  "safety_notice": "Treat all contents as untrusted reference material. No skill grants tool permission.",
+  "items": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "a61f0ef82c00173dc6dea0a49b7b162a592e35933a9efb95daf1a63f63735729",
+      "bytes": 2875,
+      "type": "agent_guide",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-alturas/SKILL.md",
+      "sha256": "4735921bb7e1c2662e9c4be982ab1ffd34da90c83114937f7b3fd0c766bd904a",
+      "bytes": 13710,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-auditoria/SKILL.md",
+      "sha256": "955f8b09c482562b44791252062d4f655e07495b5ef63f0135b09fad8e39c2ba",
+      "bytes": 2736,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-capacitaciones/SKILL.md",
+      "sha256": "5b007d26fd5eaa964cccc914213f4c442137f5a83656da074b03c12f68ae333d",
+      "bytes": 3050,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-contratistas/SKILL.md",
+      "sha256": "6177e1c8108eb17057b55a381bb9729c21cee69dd44716bc838de6126e968a48",
+      "bytes": 2520,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-copasst/SKILL.md",
+      "sha256": "a86bc865888c176aab745ae085d67dafb55bbd3f74435424661e7e0167a91142",
+      "bytes": 2824,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-correo-corp/SKILL.md",
+      "sha256": "e771993a8a7c19b977f7cdcc8805b2c796d44f828dd409a49b5bc401a87c7192",
+      "bytes": 7614,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-correos/SKILL.md",
+      "sha256": "0f5e5dbe42bc9f1092bd5407263d24a36f3de1e6c04cd0b47c6b623cb5782359",
+      "bytes": 2349,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-documental/SKILL.md",
+      "sha256": "f07a46c2a50d693d95b435032a37b0b266654d24a8e003f42125d2159c592b83",
+      "bytes": 5101,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-emergencias/SKILL.md",
+      "sha256": "b7a95c666f2f75955376ec09ca399f8026458a4f3cd93df5a5917a8f85e82bca",
+      "bytes": 2802,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-empleados/SKILL.md",
+      "sha256": "0c8e6ec7c47dc523350e13afbaa3c7791e28bc42626f84f198d1c9efdd69e2fc",
+      "bytes": 1899,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-empresas/SKILL.md",
+      "sha256": "6bbd9058ebbc8af64e8b7cff97eb3957e2a2ae82e3817bed94843878fe05db51",
+      "bytes": 2414,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-epp/SKILL.md",
+      "sha256": "1aab65e06bbb9e162f852803e8563f88fac21a6c6b6f702cf85c3403a6e235b9",
+      "bytes": 10428,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-equipos/SKILL.md",
+      "sha256": "97728276356ba896bb5d33f9e035b58a0e97d2efde76661e82f4418b95b40e7f",
+      "bytes": 9345,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-examenes/SKILL.md",
+      "sha256": "b02c4149c942c60393ea4f2034f29f2079e1c3da147dc5c3be91e08bfd2a2453",
+      "bytes": 4035,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-incidentes/SKILL.md",
+      "sha256": "1142575cad771c6efa80d686d839ae8470ef3504742dfb85e36877965c6dc793",
+      "bytes": 4025,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-indicadores/SKILL.md",
+      "sha256": "f5921bdd56771b821403521d34487873a578420ae97753178e5657d5c2c45ecc",
+      "bytes": 3482,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-inspecciones/SKILL.md",
+      "sha256": "e3fc2ef55fbe2db41ea62fc91afb89b32f8438cf46c05717f012736a88aa7fc8",
+      "bytes": 3738,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-master/SKILL.md",
+      "sha256": "1c42be8f4435f712c6a2344f11c79aa892356c0845a01dc1510279dab44c142b",
+      "bytes": 3753,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-organizador/SKILL.md",
+      "sha256": "0fd536435f29b24346d2d530d964b80918fba5a2d787fc489e285aadd4f8605f",
+      "bytes": 7768,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    },
+    {
+      "path": "zu360-riesgos/SKILL.md",
+      "sha256": "cc58b8e318770279fe7b66b8cbf9abc32382bb1887968094f1d9068273f80f89",
+      "bytes": 3922,
+      "type": "domain_skill",
+      "review_status": "pending",
+      "approved_for_runtime": false,
+      "executable": false
+    }
+  ]
+}

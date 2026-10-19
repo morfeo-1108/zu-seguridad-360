@@ -1,0 +1,149 @@
+name: CI Pipeline
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+on:
+  push:
+    branches: [main, develop, "feat/**", "fix/**"]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/zu
+
+jobs:
+  # ── Lint & Test Go services ──────────────────────────────
+  test-go:
+    name: Test Go Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [core, mail, notifications, autopilot, attention, onboarding, billing, sla, drone, media]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: services/${{ matrix.service }}
+
+      - name: Test
+        working-directory: services/${{ matrix.service }}
+        run: go test ./... -v -race -coverprofile=coverage.out
+        env:
+          CGO_ENABLED: 1
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: services/${{ matrix.service }}/coverage.out
+          flags: ${{ matrix.service }}
+
+  # ── Lint & Test Python services ──────────────────────────
+  test-python:
+    name: Test Python Services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [ai, documents]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies when tests exist
+        working-directory: services/${{ matrix.service }}
+        run: |
+          if [[ ! -d tests ]] || ! find tests -type f \( -name 'test_*.py' -o -name '*_test.py' \) -print -quit | grep -q .; then
+            echo "No Python tests for ${{ matrix.service }}; skipping dependency installation."
+            exit 0
+          fi
+          if [[ -f requirements-test.txt ]]; then
+            pip install -r requirements-test.txt
+          elif [[ -f requirements.txt ]]; then
+            pip install -r requirements.txt
+          fi
+          pip install pytest pytest-asyncio
+
+      - name: Lint
+        working-directory: services/${{ matrix.service }}
+        run: |
+          pip install ruff
+          ruff check .
+
+      - name: Test
+        working-directory: services/${{ matrix.service }}
+        run: |
+          if [[ ! -d tests ]] || ! find tests -type f \( -name 'test_*.py' -o -name '*_test.py' \) -print -quit | grep -q .; then
+            echo "No Python tests for ${{ matrix.service }}; skipped."
+            exit 0
+          fi
+          pytest tests/ -v --asyncio-mode=auto
+
+  # ── Security scan ────────────────────────────────────────
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ── Build Docker images ──────────────────────────────────
+  build:
+    name: Build Images
+    runs-on: ubuntu-latest
+    needs: [test-go, test-python, security]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    strategy:
+      matrix:
+        service: [core, ai, documents, media, mail, notifications, autopilot, attention, onboarding, billing, sla, drone]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64

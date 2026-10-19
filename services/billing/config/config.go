@@ -1,0 +1,23 @@
+package config
+
+import "os"
+
+type Config struct {
+	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey string
+}
+
+func Load() *Config {
+	return &Config{
+		Port:        env("PORT", "4010"),
+		DatabaseURL: env("DATABASE_URL", "postgres://zuadmin:zupassword@postgres:5432/zu_core"),
+		RabbitMQURL: env("RABBITMQ_URL", "amqp://zurabbit:zurabbit123@rabbitmq:5672/zu_vhost"),
+		WompiURL:    env("WOMPI_URL", "https://production.wompi.co/v1"),
+		WompiKey:    env("WOMPI_KEY", ""),
+	}
+}
+func env(k, d string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return d
+}

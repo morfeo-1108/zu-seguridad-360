@@ -1,0 +1,19 @@
+from pydantic_settings import BaseSettings
+from typing import List
+
+
+class Settings(BaseSettings):
+    PORT: int = 4003
+    ENV: str = "development"
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
+    DATABASE_URL: str = "postgresql+asyncpg://zuadmin:zupassword@postgres:5432/zu_core"
+    RABBITMQ_URL: str = "amqp://zurabbit:zurabbit123@rabbitmq:5672/zu_vhost"
+    AWS_REGION: str = "us-east-1"
+    S3_BUCKET: str = "zu-documents"
+    CORE_URL: str = "http://core:4001"
+
+    class Config:
+        env_file = ".env.dev"
+
+
+settings = Settings()

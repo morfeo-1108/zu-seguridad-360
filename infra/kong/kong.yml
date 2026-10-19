@@ -1,0 +1,51 @@
+_format_version: "3.0"
+
+services:
+  - name: zu-core
+    url: http://core:4001
+    routes:
+      - name: core-routes
+        paths: [/v1/auth, /v1/companies, /v1/employees]
+        methods: [GET, POST, PUT, PATCH, DELETE]
+    plugins:
+      - name: rate-limiting
+        config: { minute: 100, policy: local }
+      - name: jwt
+      - name: cors
+
+  - name: zu-ai
+    url: http://ai:4002
+    routes:
+      - name: ai-routes
+        paths: [/v1/rag, /v1/chat, /v1/incidents/analyze, /v1/ocr]
+        methods: [GET, POST]
+    plugins:
+      - name: rate-limiting
+        config: { minute: 30, policy: local }
+      - name: jwt
+
+  - name: zu-documents
+    url: http://documents:4003
+    routes:
+      - name: documents-routes
+        paths: [/v1/documents]
+    plugins:
+      - name: jwt
+
+  - name: zu-drone
+    url: http://drone:4012
+    routes:
+      - name: drone-routes
+        paths: [/v1/drones, /v1/missions, /v1/inspections]
+    plugins:
+      - name: jwt
+
+  - name: zu-billing
+    url: http://billing:4010
+    routes:
+      - name: billing-routes
+        paths: [/v1/billing, /v1/subscriptions, /v1/invoices]
+    plugins:
+      - name: jwt
+      - name: rate-limiting
+        config: { minute: 20, policy: local }
