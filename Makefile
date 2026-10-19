@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
 GO_SERVICES := core mail notifications autopilot attention onboarding billing sla drone media
-.PHONY: help dev setup setup-core-test sync-go-deps sync-go-deps-clean build test test-go test-ai test-company-isolation lint migrate seed clean dev-infra dev-down reset-dev-volumes
+.PHONY: help dev setup setup-core-test sync-go-deps sync-go-deps-clean build test test-go test-ai test-company-isolation lint migrate seed clean dev-infra dev-down reset-dev-volumes backup-db test-restore
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "%-24s %s\n", $$1, $$2}'
@@ -59,6 +59,12 @@ seed: ## Inserta dos profesionales y empresas sintéticas en Postgres local tras
 clean: ## Limpia artefactos locales; no borra volúmenes de bases de datos
 	find . -name '*.out' -delete
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
+
+backup-db: ## Vuelca el Postgres local de Compose a backups/ con pg_dump
+	./scripts/backup-db.sh
+
+test-restore: ## Restaura el último backup en una BD descartable y compara conteos de filas
+	./scripts/restore-db-test.sh
 
 reset-dev-volumes: ## BORRA los datos del Compose local sólo con confirmación explícita
 	@test "$${CONFIRM_DEV_VOLUME_RESET:-}" = YES || (echo 'Refused: set CONFIRM_DEV_VOLUME_RESET=YES to delete local volumes' >&2; exit 1)

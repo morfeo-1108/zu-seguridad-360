@@ -4,6 +4,9 @@
 /bin/
 dist/
 
+# Local DB dumps (scripts/backup-db.sh) — never commit database contents
+/backups/
+
 # Go
 */vendor/
 *.test
