@@ -13,7 +13,7 @@ func NewMedicalHandler(svc *service.MedicalExamService) *MedicalHandler {
 }
 
 func (h *MedicalHandler) Schedule(c *fiber.Ctx) error {
-	companyID, _ := uuid.Parse(c.Params("companyId"))
+	companyID := mustUUID(c.Locals("company_id"))
 	tenantID := mustUUID(c.Locals("tenant_id"))
 	var input service.ScheduleExamInput
 	if err := c.BodyParser(&input); err != nil {
@@ -27,14 +27,18 @@ func (h *MedicalHandler) Schedule(c *fiber.Ctx) error {
 }
 
 func (h *MedicalHandler) Review(c *fiber.Ctx) error {
-	examID, _ := uuid.Parse(c.Params("id"))
+	examID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "id inválido")
+	}
 	tenantID := mustUUID(c.Locals("tenant_id"))
+	companyID := mustUUID(c.Locals("company_id"))
 	reviewedBy := mustUUID(c.Locals("user_id"))
 	var input service.ReviewExamInput
 	if err := c.BodyParser(&input); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "cuerpo inválido")
 	}
-	exam, err := h.svc.Review(c.Context(), examID, tenantID, reviewedBy, input)
+	exam, err := h.svc.Review(c.Context(), examID, tenantID, companyID, reviewedBy, input)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
@@ -43,7 +47,8 @@ func (h *MedicalHandler) Review(c *fiber.Ctx) error {
 
 func (h *MedicalHandler) GetPendingReview(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
-	exams, err := h.svc.GetPendingReview(c.Context(), tenantID)
+	companyID := mustUUID(c.Locals("company_id"))
+	exams, err := h.svc.GetPendingReview(c.Context(), tenantID, companyID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -52,7 +57,8 @@ func (h *MedicalHandler) GetPendingReview(c *fiber.Ctx) error {
 
 func (h *MedicalHandler) GetExpiring(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
-	exams, err := h.svc.GetExpiring(c.Context(), tenantID, 30)
+	companyID := mustUUID(c.Locals("company_id"))
+	exams, err := h.svc.GetExpiring(c.Context(), tenantID, companyID, 30)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -60,9 +66,13 @@ func (h *MedicalHandler) GetExpiring(c *fiber.Ctx) error {
 }
 
 func (h *MedicalHandler) GetByEmployee(c *fiber.Ctx) error {
-	empID, _ := uuid.Parse(c.Params("employeeId"))
+	empID, err := uuid.Parse(c.Params("employeeId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "employeeId inválido")
+	}
 	tenantID := mustUUID(c.Locals("tenant_id"))
-	exams, err := h.svc.GetByEmployee(c.Context(), empID, tenantID)
+	companyID := mustUUID(c.Locals("company_id"))
+	exams, err := h.svc.GetByEmployee(c.Context(), empID, tenantID, companyID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}

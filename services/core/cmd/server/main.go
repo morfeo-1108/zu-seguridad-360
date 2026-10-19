@@ -68,6 +68,8 @@ func main() {
 	riskSvc := service.NewRiskService(db)
 	mgmtSvc := service.NewManagementSystemService(db)
 	watchSvc := service.NewRegulatoryWatchService(db)
+	medicalSvc := service.NewMedicalExamService(db, amqp, cfg.SyntheticPilotEnabled)
+	evidenceSvc := service.NewEvidenceService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -77,6 +79,8 @@ func main() {
 	incidentH := handler.NewIncidentHandler(incidentSvc)
 	trainingH := handler.NewTrainingHandler(trainingSvc)
 	mgmtH := handler.NewManagementHandler(mgmtSvc, watchSvc)
+	medicalH := handler.NewMedicalHandler(medicalSvc)
+	evidenceH := handler.NewEvidenceHandler(evidenceSvc)
 	metaH := handler.NewSystemMetaHandler()
 	_ = riskSvc // handler en siguiente iteración
 
@@ -144,8 +148,16 @@ func main() {
 	emp.Delete("/:id", employeeH.Delete)
 	emp.Get("/:id/profile", employeeH.GetOccupationalProfile)
 
-	// Medical exam endpoints are intentionally not registered until consent checks,
-	// company membership, medical-data minimization, and retention are reviewed.
+	// Medical exams: engineering-unblocked for the synthetic pilot (MedicalExamService
+	// still returns ErrSensitiveDataProcessingDisabled outside PILOT_SYNTHETIC_ENABLED).
+	// This does NOT replace the pending consent, retention, and privacy review for real
+	// worker medical data.
+	med := app.Group("/v1/companies/:companyId/medical-exams", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "medical_exams"), middleware.SensitiveDataProcessingGate(cfg.SyntheticPilotEnabled))
+	med.Post("/", medicalH.Schedule)
+	med.Get("/pending-review", medicalH.GetPendingReview)
+	med.Get("/expiring", medicalH.GetExpiring)
+	med.Get("/employee/:employeeId", medicalH.GetByEmployee)
+	med.Put("/:id/review", medicalH.Review)
 
 	// Incidents
 	inc := app.Group("/v1/companies/:companyId/incidents", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "incidents"), middleware.SensitiveDataProcessingGate(cfg.SyntheticPilotEnabled))
@@ -167,12 +179,24 @@ func main() {
 	// Zone checklists and recognition routes are intentionally not registered:
 	// their legal references require review against current Colombian rules.
 
-	// Evidence routes remain unregistered until every object lookup is scoped
-	// through a verified company membership (the current evidence model is tenant-only).
+	// Evidence: every lookup is now scoped by the token's active company_id (not
+	// client input), fixing the tenant-only leak that kept this group unregistered.
+	ev := app.Group("/v1/companies/:companyId/evidence", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "evidence"), middleware.SensitiveDataProcessingGate(cfg.SyntheticPilotEnabled))
+	ev.Post("/", evidenceH.Record)
+	ev.Get("/employees/:employeeId", evidenceH.EmployeeTimeline)
+	ev.Get("/employees/:employeeId/compliance-proof", evidenceH.ComplianceProof)
+	ev.Get("/projects/:projectId", evidenceH.ProjectEvidence)
 
 	// ── Sistema de Gestión PHVA + cumplimiento ISO/Res.0312 ──
-	// Company management routes remain unregistered pending an object-level
-	// ownership test for every management-system ID.
+	// Every systemId/standardId lookup below is scoped to the token's active
+	// company_id, fixing the same class of leak as evidence above.
+	phva := app.Group("/v1/companies/:companyId/phva", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "management"))
+	phva.Post("/systems", mgmtH.InitSystem)
+	phva.Post("/systems/:id/assess", mgmtH.Assess)
+	phva.Get("/systems/:id/score", mgmtH.Score)
+	phva.Post("/systems/:id/advance-phase", mgmtH.AdvancePhase)
+	phva.Post("/systems/:id/close-loop", mgmtH.CloseLoop)
+	phva.Put("/standards/:id/validate", mgmtH.ValidateStandard)
 	// ── Vigilancia normativa (humano en el lazo) ──
 	regulatory := app.Group("/v1/regulatory", jwt)
 	regulatory.Get("/pending", middleware.Authorize(enforcer, "regulatory_read"), mgmtH.PendingChanges)

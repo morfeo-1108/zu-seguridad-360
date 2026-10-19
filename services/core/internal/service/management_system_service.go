@@ -149,9 +149,9 @@ func (s *ManagementSystemService) InitializeSystem(ctx context.Context, tenantID
 // los datos reales de los módulos. NO marca cumplimiento definitivo: deja la
 // evaluación lista para validación humana.
 
-func (s *ManagementSystemService) AssessCompliance(ctx context.Context, tenantID, systemID uuid.UUID) (map[string]interface{}, error) {
+func (s *ManagementSystemService) AssessCompliance(ctx context.Context, tenantID, companyID, systemID uuid.UUID) (map[string]interface{}, error) {
 	var system model.ManagementSystem
-	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", systemID, tenantID).First(&system).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ? AND company_id = ?", systemID, tenantID, companyID).First(&system).Error; err != nil {
 		return nil, err
 	}
 	var standards []model.ComplianceStandard
@@ -188,9 +188,19 @@ func (s *ManagementSystemService) evaluateStandard(std *model.ComplianceStandard
 
 // ValidateStandard: el profesional SST APRUEBA (o corrige) la evaluación.
 // Solo lo validado por humano cuenta para el score de cumplimiento legal.
-func (s *ManagementSystemService) ValidateStandard(ctx context.Context, tenantID, standardID, validatedBy uuid.UUID, status string) error {
+func (s *ManagementSystemService) ValidateStandard(ctx context.Context, tenantID, companyID, standardID, validatedBy uuid.UUID, status string) error {
 	if status != "cumple" && status != "no_cumple" && status != "parcial" {
 		return fmt.Errorf("invalid standard status")
+	}
+	var count int64
+	if err := s.db.WithContext(ctx).Table("compliance_standards AS cs").
+		Joins("JOIN management_systems AS ms ON ms.id = cs.system_id AND ms.tenant_id = cs.tenant_id").
+		Where("cs.id = ? AND cs.tenant_id = ? AND ms.company_id = ?", standardID, tenantID, companyID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count != 1 {
+		return gorm.ErrRecordNotFound
 	}
 	now := time.Now()
 	result := s.db.WithContext(ctx).Model(&model.ComplianceStandard{}).
@@ -212,9 +222,9 @@ func (s *ManagementSystemService) ValidateStandard(ctx context.Context, tenantID
 
 // ComplianceScore: solo cuenta estándares VALIDADOS por humano.
 
-func (s *ManagementSystemService) ComplianceScore(ctx context.Context, tenantID, systemID uuid.UUID) (map[string]interface{}, error) {
+func (s *ManagementSystemService) ComplianceScore(ctx context.Context, tenantID, companyID, systemID uuid.UUID) (map[string]interface{}, error) {
 	var system model.ManagementSystem
-	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", systemID, tenantID).First(&system).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ? AND company_id = ?", systemID, tenantID, companyID).First(&system).Error; err != nil {
 		return nil, err
 	}
 	var standards []model.ComplianceStandard
@@ -264,9 +274,9 @@ func (s *ManagementSystemService) ComplianceScore(ctx context.Context, tenantID,
 
 // AdvancePhase: avanza el ciclo PHVA. Al cerrar 'Actuar', las acciones
 // correctivas marcadas alimentan el plan del siguiente ciclo (cierre del lazo).
-func (s *ManagementSystemService) AdvancePhase(ctx context.Context, tenantID, systemID uuid.UUID) (model.PHVAPhase, error) {
+func (s *ManagementSystemService) AdvancePhase(ctx context.Context, tenantID, companyID, systemID uuid.UUID) (model.PHVAPhase, error) {
 	var sys model.ManagementSystem
-	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", systemID, tenantID).First(&sys).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ? AND company_id = ?", systemID, tenantID, companyID).First(&sys).Error; err != nil {
 		return "", err
 	}
 	next := map[model.PHVAPhase]model.PHVAPhase{
@@ -291,9 +301,9 @@ func (s *ManagementSystemService) AdvancePhase(ctx context.Context, tenantID, sy
 
 // CloseLoop: crea el SG-SST del siguiente año heredando las lecciones de las
 // acciones correctivas del ciclo actual (mejora continua real).
-func (s *ManagementSystemService) CloseLoop(ctx context.Context, tenantID, systemID uuid.UUID) (*model.ManagementSystem, error) {
+func (s *ManagementSystemService) CloseLoop(ctx context.Context, tenantID, companyID, systemID uuid.UUID) (*model.ManagementSystem, error) {
 	var current model.ManagementSystem
-	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", systemID, tenantID).First(&current).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND tenant_id = ? AND company_id = ?", systemID, tenantID, companyID).First(&current).Error; err != nil {
 		return nil, err
 	}
 

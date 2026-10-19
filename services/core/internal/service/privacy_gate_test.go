@@ -52,16 +52,16 @@ func TestMedicalExamServiceBlocksAllOperationsBeforeDependencies(t *testing.T) {
 	if err := svc.ProcessOCR(ctx, id, map[string]interface{}{"raw": "medical data"}); !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
 		t.Fatalf("ProcessOCR must fail closed; err=%v", err)
 	}
-	if exam, err := svc.Review(ctx, id, id, id, ReviewExamInput{}); exam != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
+	if exam, err := svc.Review(ctx, id, id, id, id, ReviewExamInput{}); exam != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
 		t.Fatalf("Review must fail closed; exam=%v err=%v", exam, err)
 	}
-	if exams, err := svc.GetByEmployee(ctx, id, id); exams != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
+	if exams, err := svc.GetByEmployee(ctx, id, id, id); exams != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
 		t.Fatalf("GetByEmployee must fail closed; exams=%v err=%v", exams, err)
 	}
-	if exams, err := svc.GetPendingReview(ctx, id); exams != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
+	if exams, err := svc.GetPendingReview(ctx, id, id); exams != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
 		t.Fatalf("GetPendingReview must fail closed; exams=%v err=%v", exams, err)
 	}
-	if exams, err := svc.GetExpiring(ctx, id, 30); exams != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
+	if exams, err := svc.GetExpiring(ctx, id, id, 30); exams != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
 		t.Fatalf("GetExpiring must fail closed; exams=%v err=%v", exams, err)
 	}
 }

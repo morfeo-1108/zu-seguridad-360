@@ -59,38 +59,38 @@ func (s *EvidenceService) Record(ctx context.Context, ev *model.EvidenceRecord) 
 	})
 }
 
-func (s *EvidenceService) EmployeeTimeline(ctx context.Context, tenantID, employeeID uuid.UUID, limit int) ([]model.EvidenceRecord, error) {
+func (s *EvidenceService) EmployeeTimeline(ctx context.Context, tenantID, companyID, employeeID uuid.UUID, limit int) ([]model.EvidenceRecord, error) {
 	var records []model.EvidenceRecord
-	q := s.db.WithContext(ctx).Where("tenant_id = ? AND employee_id = ?", tenantID, employeeID).Order("captured_at DESC")
+	q := s.db.WithContext(ctx).Where("tenant_id = ? AND company_id = ? AND employee_id = ?", tenantID, companyID, employeeID).Order("captured_at DESC")
 	if limit > 0 {
 		q = q.Limit(limit)
 	}
 	return records, q.Find(&records).Error
 }
 
-func (s *EvidenceService) EmployeeEvidenceByType(ctx context.Context, tenantID, employeeID uuid.UUID, etype model.EvidenceType) ([]model.EvidenceRecord, error) {
+func (s *EvidenceService) EmployeeEvidenceByType(ctx context.Context, tenantID, companyID, employeeID uuid.UUID, etype model.EvidenceType) ([]model.EvidenceRecord, error) {
 	var records []model.EvidenceRecord
 	err := s.db.WithContext(ctx).
-		Where("tenant_id = ? AND employee_id = ? AND type = ?", tenantID, employeeID, etype).
+		Where("tenant_id = ? AND company_id = ? AND employee_id = ? AND type = ?", tenantID, companyID, employeeID, etype).
 		Order("captured_at DESC").Find(&records).Error
 	return records, err
 }
 
-func (s *EvidenceService) ProjectEvidence(ctx context.Context, tenantID, projectID uuid.UUID, from, to time.Time) ([]model.EvidenceRecord, error) {
+func (s *EvidenceService) ProjectEvidence(ctx context.Context, tenantID, companyID, projectID uuid.UUID, from, to time.Time) ([]model.EvidenceRecord, error) {
 	var records []model.EvidenceRecord
 	err := s.db.WithContext(ctx).
-		Where("tenant_id = ? AND project_id = ? AND captured_at BETWEEN ? AND ?", tenantID, projectID, from, to).
+		Where("tenant_id = ? AND company_id = ? AND project_id = ? AND captured_at BETWEEN ? AND ?", tenantID, companyID, projectID, from, to).
 		Order("captured_at DESC").Find(&records).Error
 	return records, err
 }
 
-func (s *EvidenceService) ComplianceProof(ctx context.Context, tenantID, employeeID uuid.UUID, checklistCode string, date time.Time) (*model.EvidenceRecord, error) {
+func (s *EvidenceService) ComplianceProof(ctx context.Context, tenantID, companyID, employeeID uuid.UUID, checklistCode string, date time.Time) (*model.EvidenceRecord, error) {
 	var record model.EvidenceRecord
 	start := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
 	err := s.db.WithContext(ctx).
-		Where("tenant_id = ? AND employee_id = ? AND checklist_code = ? AND captured_at >= ? AND captured_at < ? AND compliant = true",
-			tenantID, employeeID, checklistCode, start, end).
+		Where("tenant_id = ? AND company_id = ? AND employee_id = ? AND checklist_code = ? AND captured_at >= ? AND captured_at < ? AND compliant = true",
+			tenantID, companyID, employeeID, checklistCode, start, end).
 		Order("captured_at DESC").First(&record).Error
 	if err != nil {
 		return nil, err
@@ -98,14 +98,14 @@ func (s *EvidenceService) ComplianceProof(ctx context.Context, tenantID, employe
 	return &record, nil
 }
 
-func (s *EvidenceService) Stats(ctx context.Context, tenantID, employeeID uuid.UUID) (map[string]interface{}, error) {
+func (s *EvidenceService) Stats(ctx context.Context, tenantID, companyID, employeeID uuid.UUID) (map[string]interface{}, error) {
 	var total, compliant int64
-	q := s.db.WithContext(ctx).Model(&model.EvidenceRecord{}).Where("tenant_id = ? AND employee_id = ?", tenantID, employeeID)
+	q := s.db.WithContext(ctx).Model(&model.EvidenceRecord{}).Where("tenant_id = ? AND company_id = ? AND employee_id = ?", tenantID, companyID, employeeID)
 	if err := q.Count(&total).Error; err != nil {
 		return nil, err
 	}
 	if err := s.db.WithContext(ctx).Model(&model.EvidenceRecord{}).
-		Where("tenant_id = ? AND employee_id = ? AND compliant = true", tenantID, employeeID).Count(&compliant).Error; err != nil {
+		Where("tenant_id = ? AND company_id = ? AND employee_id = ? AND compliant = true", tenantID, companyID, employeeID).Count(&compliant).Error; err != nil {
 		return nil, err
 	}
 	rate := 100.0

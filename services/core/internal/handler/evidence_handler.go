@@ -31,6 +31,10 @@ func (h *EvidenceHandler) Record(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "cuerpo inválido")
 	}
 	ev.TenantID = mustUUID(c.Locals("tenant_id"))
+	// company_id must come from the token's active company, never the client body —
+	// otherwise a user could record evidence under any company in their tenant,
+	// bypassing the switch-company membership check.
+	ev.CompanyID = mustUUID(c.Locals("company_id"))
 	// Client-supplied detections, compliance decisions and hashes are not trusted.
 	ev.ID = uuid.Nil
 	ev.Compliant = nil
@@ -50,6 +54,7 @@ func (h *EvidenceHandler) Record(c *fiber.Ctx) error {
 
 func (h *EvidenceHandler) EmployeeTimeline(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
+	companyID := mustUUID(c.Locals("company_id"))
 	empID, err := parseEvidenceID(c.Params("employeeId"), "employeeId")
 	if err != nil {
 		return err
@@ -58,11 +63,11 @@ func (h *EvidenceHandler) EmployeeTimeline(c *fiber.Ctx) error {
 	if err != nil || limit < 1 || limit > 200 {
 		return fiber.NewError(fiber.StatusBadRequest, "limit debe estar entre 1 y 200")
 	}
-	records, err := h.svc.EmployeeTimeline(c.Context(), tenantID, empID, limit)
+	records, err := h.svc.EmployeeTimeline(c.Context(), tenantID, companyID, empID, limit)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "no fue posible consultar evidencias")
 	}
-	stats, err := h.svc.Stats(c.Context(), tenantID, empID)
+	stats, err := h.svc.Stats(c.Context(), tenantID, companyID, empID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "no fue posible calcular estadísticas")
 	}
@@ -71,6 +76,7 @@ func (h *EvidenceHandler) EmployeeTimeline(c *fiber.Ctx) error {
 
 func (h *EvidenceHandler) ComplianceProof(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
+	companyID := mustUUID(c.Locals("company_id"))
 	empID, err := parseEvidenceID(c.Params("employeeId"), "employeeId")
 	if err != nil {
 		return err
@@ -83,7 +89,7 @@ func (h *EvidenceHandler) ComplianceProof(c *fiber.Ctx) error {
 	if code == "" || len(code) > 50 {
 		return fiber.NewError(fiber.StatusBadRequest, "code requerido")
 	}
-	proof, err := h.svc.ComplianceProof(c.Context(), tenantID, empID, code, date)
+	proof, err := h.svc.ComplianceProof(c.Context(), tenantID, companyID, empID, code, date)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"found": false, "message": "No hay prueba disponible para ese ítem y fecha"})
@@ -95,6 +101,7 @@ func (h *EvidenceHandler) ComplianceProof(c *fiber.Ctx) error {
 
 func (h *EvidenceHandler) ProjectEvidence(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
+	companyID := mustUUID(c.Locals("company_id"))
 	projectID, err := parseEvidenceID(c.Params("projectId"), "projectId")
 	if err != nil {
 		return err
@@ -107,7 +114,7 @@ func (h *EvidenceHandler) ProjectEvidence(c *fiber.Ctx) error {
 	if err != nil || to.Before(from) {
 		return fiber.NewError(fiber.StatusBadRequest, "rango de fechas inválido")
 	}
-	records, err := h.svc.ProjectEvidence(c.Context(), tenantID, projectID, from, to.Add(24*time.Hour))
+	records, err := h.svc.ProjectEvidence(c.Context(), tenantID, companyID, projectID, from, to.Add(24*time.Hour))
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "no fue posible consultar evidencias")
 	}

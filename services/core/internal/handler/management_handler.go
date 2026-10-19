@@ -26,17 +26,13 @@ func managementPathID(c *fiber.Ctx) (uuid.UUID, error) {
 
 func (h *ManagementHandler) InitSystem(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
+	companyID := mustUUID(c.Locals("company_id"))
 	var body struct {
-		CompanyID  string                `json:"company_id"`
 		Year       int                   `json:"year"`
 		Frameworks []model.NormFramework `json:"frameworks"`
 	}
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "cuerpo inválido")
-	}
-	companyID, err := uuid.Parse(body.CompanyID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "company_id inválido")
 	}
 	if len(body.Frameworks) == 0 {
 		body.Frameworks = []model.NormFramework{model.FwRes0312, model.FwISO45001}
@@ -53,7 +49,7 @@ func (h *ManagementHandler) Assess(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	result, err := h.svc.AssessCompliance(c.Context(), mustUUID(c.Locals("tenant_id")), systemID)
+	result, err := h.svc.AssessCompliance(c.Context(), mustUUID(c.Locals("tenant_id")), mustUUID(c.Locals("company_id")), systemID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "sistema no disponible")
 	}
@@ -71,7 +67,7 @@ func (h *ManagementHandler) ValidateStandard(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "cuerpo inválido")
 	}
-	err = h.svc.ValidateStandard(c.Context(), mustUUID(c.Locals("tenant_id")), standardID, mustUUID(c.Locals("user_id")), body.Status)
+	err = h.svc.ValidateStandard(c.Context(), mustUUID(c.Locals("tenant_id")), mustUUID(c.Locals("company_id")), standardID, mustUUID(c.Locals("user_id")), body.Status)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "no fue posible validar el estándar")
 	}
@@ -83,7 +79,7 @@ func (h *ManagementHandler) Score(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	result, err := h.svc.ComplianceScore(c.Context(), mustUUID(c.Locals("tenant_id")), systemID)
+	result, err := h.svc.ComplianceScore(c.Context(), mustUUID(c.Locals("tenant_id")), mustUUID(c.Locals("company_id")), systemID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "sistema no disponible")
 	}
@@ -95,7 +91,7 @@ func (h *ManagementHandler) AdvancePhase(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	next, err := h.svc.AdvancePhase(c.Context(), mustUUID(c.Locals("tenant_id")), systemID)
+	next, err := h.svc.AdvancePhase(c.Context(), mustUUID(c.Locals("tenant_id")), mustUUID(c.Locals("company_id")), systemID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "sistema no disponible")
 	}
@@ -107,7 +103,7 @@ func (h *ManagementHandler) CloseLoop(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	next, err := h.svc.CloseLoop(c.Context(), mustUUID(c.Locals("tenant_id")), systemID)
+	next, err := h.svc.CloseLoop(c.Context(), mustUUID(c.Locals("tenant_id")), mustUUID(c.Locals("company_id")), systemID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "sistema no disponible")
 	}
