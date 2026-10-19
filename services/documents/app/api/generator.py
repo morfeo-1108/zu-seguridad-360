@@ -6,6 +6,7 @@ import uuid
 
 from app.services.pdf_generator import DocumentGenerator
 from app.core.config import settings
+from app.core.auth import get_current_user
 
 router = APIRouter()
 generator = DocumentGenerator()
@@ -27,7 +28,7 @@ class GenerateResponse(BaseModel):
 
 
 @router.post("/generate", response_model=GenerateResponse)
-async def generate_document(req: GenerateRequest, background_tasks: BackgroundTasks):
+async def generate_document(req: GenerateRequest, background_tasks: BackgroundTasks, user=Depends(get_current_user)):
     """Genera un documento SST en PDF/Word/Excel según template."""
     doc_id = str(uuid.uuid4())
 
@@ -52,7 +53,7 @@ async def generate_document(req: GenerateRequest, background_tasks: BackgroundTa
 
 
 @router.post("/generate/inline")
-async def generate_document_inline(req: GenerateRequest):
+async def generate_document_inline(req: GenerateRequest, user=Depends(get_current_user)):
     """Retorna el PDF directamente en la respuesta (para preview)."""
     doc_id = str(uuid.uuid4())
     try:

@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Dict, Any
 import uuid
 
 from app.services.pdf_generator import DocumentGenerator
+from app.core.auth import get_current_user
 
 router = APIRouter()
 gen = DocumentGenerator()
@@ -25,7 +26,7 @@ class CertificateRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_certificate(req: CertificateRequest):
+async def generate_certificate(req: CertificateRequest, user=Depends(get_current_user)):
     """Genera certificado PDF con QR de verificación."""
     doc_id = req.folio
     pdf_bytes = gen.generate("certificado_capacitacion", req.dict(), doc_id)

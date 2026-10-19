@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 
 from app.services.pdf_generator import DocumentGenerator
+from app.core.auth import get_current_user
 
 router = APIRouter()
 gen = DocumentGenerator()
@@ -28,7 +29,7 @@ class MonthlyReportRequest(BaseModel):
 
 
 @router.post("/monthly/generate")
-async def generate_monthly_report(req: MonthlyReportRequest):
+async def generate_monthly_report(req: MonthlyReportRequest, user=Depends(get_current_user)):
     """Genera informe mensual SST con indicadores IF, IS, ILI."""
     doc_id = str(uuid.uuid4())
     data = req.dict()
@@ -44,7 +45,7 @@ async def generate_monthly_report(req: MonthlyReportRequest):
 
 
 @router.post("/res0312/generate")
-async def generate_res0312_report(data: Dict[str, Any]):
+async def generate_res0312_report(data: Dict[str, Any], user=Depends(get_current_user)):
     """Genera checklist de cumplimiento Res. 0312/2019 con estado por estándar."""
     doc_id = str(uuid.uuid4())
     pdf_bytes = gen.generate("politica_sst", {"title": "Evaluación Res. 0312/2019", **data}, doc_id)

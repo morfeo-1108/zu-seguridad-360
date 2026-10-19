@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     S3_BUCKET: str = "zu-documents"
     CORE_URL: str = "http://core:4001"
+    JWT_SECRET: str = "zu-super-secret-key-change-in-prod"
 
     class Config:
         env_file = ".env.dev"
