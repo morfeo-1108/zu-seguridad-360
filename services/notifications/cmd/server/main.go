@@ -20,7 +20,8 @@ func main() {
 	defer cancel()
 
 	dispatcher := service.NewNotificationDispatcher(map[string]string{
-		"whatsapp_token": cfg.WhatsAppToken, "push_api_key": cfg.PushAPIKey,
+		"whatsapp_token": cfg.WhatsAppToken, "whatsapp_phone_number_id": cfg.WhatsAppPhoneNumberID,
+		"push_api_key": cfg.PushAPIKey,
 	})
 
 	if conn, err := amqp.Dial(cfg.RabbitMQURL); err == nil {
