@@ -15,11 +15,23 @@ router = APIRouter()
 @router.post("/enroll-biometric")
 async def enroll_worker(
     employee_id: str = Form(...),
+    company_id: str = Form(...),
     face: UploadFile = File(...),
     consent_verified: bool = Form(False),
     user=Depends(get_current_user),
 ):
-    """Enrola el rostro de un trabajador. Requiere consentimiento Ley 1581."""
+    """Enrola el rostro de un trabajador.
+
+    `consent_verified` es un booleano que reporta el propio cliente: esta ruta
+    NO implementa captura ni verificación real de consentimiento (Ley 1581).
+    No tratar este flag como evidencia de consentimiento ante una auditoría.
+
+    company_id se valida contra Core (membership real) antes de enrolar, para
+    no permitir que un profesional enrole datos biométricos de un trabajador
+    de una empresa de su tenant distinta a la que tiene activa en el token.
+    """
+    if not await _employee_belongs_to_company(user, employee_id, company_id):
+        raise HTTPException(status_code=403, detail="employee does not belong to the authorized company")
     face_bytes = await face.read()
     result = await biometric_engine.enroll(user["tenant_id"], employee_id, face_bytes, consent_verified)
     if not result.enrolled:
@@ -97,6 +109,19 @@ async def inspect_zone(
         ],
         "latency_ms": result.latency_ms,
     }
+
+
+async def _employee_belongs_to_company(user, employee_id: str, company_id: str) -> bool:
+    """Confirms via Core's own membership-enforced endpoint that employee_id
+    belongs to company_id — never trusted from the client alone."""
+    async with httpx.AsyncClient(timeout=10.0) as http:
+        headers = {"Authorization": f"Bearer {user.get('token', '')}"}
+        url = f"{settings.CORE_URL}/v1/companies/{company_id}/employees/{employee_id}"
+        try:
+            r = await http.get(url, headers=headers)
+            return r.status_code == 200
+        except Exception:
+            return False
 
 
 async def _resolve_zone(user, project_id, marker_id, lat, lng) -> dict[str, Any] | None:

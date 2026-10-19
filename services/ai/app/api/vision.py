@@ -1,6 +1,7 @@
 """API de inferencia de visión para el sistema de drones."""
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, Depends
 from app.vision.inference import engine
+from app.core.auth import get_current_user
 
 router = APIRouter()
 
@@ -8,11 +9,17 @@ router = APIRouter()
 @router.post("/infer")
 async def infer_frame(
     file: UploadFile = File(...),
-    company_id: str = Form(...),
     frame_id: str = Form(...),
     altitude_context: str = Form("ground"),
+    user=Depends(get_current_user),
 ):
-    """Ejecuta inferencia de visión sobre un frame del dron."""
+    """Ejecuta inferencia de visión sobre un frame del dron.
+
+    company_id viene del token activo, nunca del formulario: antes se
+    confiaba en un campo controlado por el cliente para decidir sobre
+    qué empresa se guardaba/reportaba la inferencia.
+    """
+    company_id = user["company_id"]
     frame_bytes = await file.read()
     result = await engine.infer(frame_bytes, frame_id, company_id, altitude_context)
     return {

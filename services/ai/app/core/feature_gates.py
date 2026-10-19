@@ -22,11 +22,17 @@ def ai_path_enabled(path: str, flags: Any) -> bool:
     Health/metrics endpoints are intentionally not controlled here. Every API
     path under /v1 is closed unless AI_SERVICE_API_ENABLED is explicitly true;
     higher-risk groups additionally require their own feature flag.
+
+    /v1/ocr and /v1/zone-inspection used to be hardcoded closed regardless of
+    flags, pending a verified Core consent/company authorization integration.
+    zone-inspection's biometric enroll now verifies company membership against
+    Core before enrolling (see _employee_belongs_to_company in
+    app/api/zone_inspection.py); ocr/medical-exam never persists data itself —
+    review/storage happens through Core's own company-scoped endpoint. Both are
+    now governed only by their feature flags, same as every other group below.
+    consent_verified on biometric enroll remains client-reported, not a real
+    consent-capture/verification system.
     """
-    # These data classes have no verified Core consent/company authorization
-    # integration. Keep them closed even if an operator toggles feature flags.
-    if _matches(path, "/v1/ocr") or _matches(path, "/v1/zone-inspection"):
-        return False
     if not path.startswith("/v1/"):
         return True
     if not _enabled(flags, "AI_SERVICE_API_ENABLED"):

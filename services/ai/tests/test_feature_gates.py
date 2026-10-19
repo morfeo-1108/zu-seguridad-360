@@ -72,7 +72,15 @@ def test_settings_default_all_high_risk_flags_to_false(monkeypatch):
     assert settings.PRIVACY_PROCESSING_APPROVED is False
 
 
-def test_medical_ocr_and_biometric_enrollment_stay_closed_with_every_flag_true():
+def test_medical_ocr_and_biometric_enrollment_follow_their_own_flags():
+    """Until 2026-10-19 these paths stayed hardcoded closed regardless of flags,
+    pending a verified Core consent/company authorization integration. That
+    integration now exists for biometric enroll (company membership is checked
+    against Core before enrolling — see _employee_belongs_to_company in
+    app/api/zone_inspection.py) and was never needed for OCR (it never persists
+    data itself). Per explicit product decision they now follow the same
+    per-group flag as every other route; consent_verified on biometric enroll
+    is still client-reported, not a verified consent-capture system."""
     flags = {
         "AI_SERVICE_API_ENABLED": True,
         "AI_AUTONOMOUS_ENABLED": True,
@@ -81,7 +89,13 @@ def test_medical_ocr_and_biometric_enrollment_stay_closed_with_every_flag_true()
         "SENSITIVE_AI_ENABLED": True,
         "PRIVACY_PROCESSING_APPROVED": True,
     }
-    assert ai_path_enabled("/v1/ocr/medical-exam", flags) is False
-    assert ai_path_enabled("/v1/zone-inspection/enroll-biometric", flags) is False
-    assert ai_path_enabled("/v1/zone-inspection/inspect", flags) is False
+    assert ai_path_enabled("/v1/ocr/medical-exam", flags) is True
+    assert ai_path_enabled("/v1/zone-inspection/enroll-biometric", flags) is True
+    assert ai_path_enabled("/v1/zone-inspection/inspect", flags) is True
     assert ai_path_enabled("/v1/vision/infer", flags) is True
+
+    flags_no_sensitive = {**flags, "SENSITIVE_AI_ENABLED": False}
+    assert ai_path_enabled("/v1/ocr/medical-exam", flags_no_sensitive) is False
+
+    flags_no_vision = {**flags, "VISION_ENABLED": False}
+    assert ai_path_enabled("/v1/zone-inspection/enroll-biometric", flags_no_vision) is False
