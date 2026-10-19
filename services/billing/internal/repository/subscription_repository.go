@@ -36,9 +36,9 @@ func (r *InvoiceRepository) Create(ctx context.Context, inv *model.Invoice) erro
 	return r.db.WithContext(ctx).Create(inv).Error
 }
 
-func (r *InvoiceRepository) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]model.Invoice, error) {
+func (r *InvoiceRepository) FindByTenant(ctx context.Context, tenantID uuid.UUID) ([]model.Invoice, error) {
 	var invoices []model.Invoice
-	err := r.db.WithContext(ctx).Where("company_id = ?", companyID).Order("created_at DESC").Find(&invoices).Error
+	err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Order("created_at DESC").Find(&invoices).Error
 	return invoices, err
 }
 

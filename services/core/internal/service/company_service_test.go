@@ -8,7 +8,7 @@ import (
 )
 
 func TestSyntheticCompanyRequiresReservedRiskMetadata(t *testing.T) {
-	service := NewCompanyService(nil, nil, true)
+	service := NewCompanyService(nil, nil, "", true)
 	base := CreateCompanyInput{
 		Name:          "ZU360 PILOTO SINTÉTICO - EMPRESA DE PRUEBA",
 		NIT:           "TEST-NIT-9001",
@@ -30,7 +30,7 @@ func TestSyntheticCompanyRequiresReservedRiskMetadata(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			input := base
 			test.mutate(&input)
-			_, err := service.CreateForUser(context.Background(), input, uuid.New(), uuid.New())
+			_, err := service.CreateForUser(context.Background(), input, uuid.New(), uuid.New(), "")
 			if err != ErrSyntheticDataRequired {
 				t.Fatalf("expected ErrSyntheticDataRequired, got %v", err)
 			}
@@ -39,7 +39,7 @@ func TestSyntheticCompanyRequiresReservedRiskMetadata(t *testing.T) {
 }
 
 func TestSyntheticPilotRiskScoreIsDisabled(t *testing.T) {
-	service := NewCompanyService(nil, nil, true)
+	service := NewCompanyService(nil, nil, "", true)
 	value, err := service.CalculateRiskScore(context.Background(), uuid.New(), uuid.New())
 	if err != ErrSensitiveDataProcessingDisabled {
 		t.Fatalf("expected ErrSensitiveDataProcessingDisabled, got %v", err)

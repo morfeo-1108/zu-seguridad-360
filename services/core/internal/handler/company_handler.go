@@ -42,8 +42,11 @@ func (h *CompanyHandler) Create(c *fiber.Ctx) error {
 	}
 	tenantID := mustUUID(c.Locals("tenant_id"))
 	userID := mustUUID(c.Locals("user_id"))
-	company, err := h.svc.CreateForUser(c.Context(), input, tenantID, userID)
+	company, err := h.svc.CreateForUser(c.Context(), input, tenantID, userID, c.Get("Authorization"))
 	if err != nil {
+		if err == service.ErrCompanyQuotaExceeded {
+			return fiber.NewError(fiber.StatusPaymentRequired, err.Error())
+		}
 		return fiber.NewError(fiber.StatusConflict, err.Error())
 	}
 	return c.Status(fiber.StatusCreated).JSON(company)

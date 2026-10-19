@@ -49,6 +49,8 @@ type Config struct {
 	S3Bucket           string
 
 	OTELEndpoint string
+
+	BillingURL string
 }
 
 func Load() *Config {
@@ -98,6 +100,7 @@ func Load() *Config {
 		S3Bucket:  getEnv("S3_BUCKET", "zu-documents"),
 
 		OTELEndpoint: getEnv("OTEL_ENDPOINT", "http://localhost:4317"),
+		BillingURL:   getEnv("BILLING_URL", "http://billing:4010"),
 	}
 }
 

@@ -26,12 +26,15 @@ const (
 	PlanDronAdd  PlanCode = "dron_addon"
 )
 
+// Subscription is one per professional/tenant, not per company: the plan sells
+// a quota of companies a professional may manage (basico=10, estandar=20,
+// premium=50; dron_addon does not carry its own company quota).
 type Subscription struct {
 	ID                 uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	TenantID           uuid.UUID          `gorm:"type:uuid;not null;index" json:"tenant_id"`
-	CompanyID          uuid.UUID          `gorm:"type:uuid;not null;uniqueIndex" json:"company_id"`
+	TenantID           uuid.UUID          `gorm:"type:uuid;not null;uniqueIndex" json:"tenant_id"`
 	PlanCode           PlanCode           `gorm:"size:30;not null" json:"plan_code"`
 	PriceMonthly       int64              `gorm:"not null" json:"price_monthly"` // COP en centavos
+	MaxCompanies       int                `gorm:"not null" json:"max_companies"` // cupo vigente al momento de suscribirse
 	Status             SubscriptionStatus `gorm:"size:20;default:'active'" json:"status"`
 	WompiTokenID       string             `gorm:"size:255" json:"wompi_token_id"` // tokenización tarjeta
 	BillingDay         int                `gorm:"default:1" json:"billing_day"`
@@ -45,10 +48,11 @@ type Subscription struct {
 	UpdatedAt          time.Time          `json:"updated_at"`
 }
 
+// Invoice bills the professional/tenant (ZU360's actual customer), not an
+// individual client company in their portfolio.
 type Invoice struct {
 	ID             uuid.UUID              `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	TenantID       uuid.UUID              `gorm:"type:uuid;not null;index" json:"tenant_id"`
-	CompanyID      uuid.UUID              `gorm:"type:uuid;not null;index" json:"company_id"`
 	SubscriptionID uuid.UUID              `gorm:"type:uuid;not null" json:"subscription_id"`
 	DIANNumber     string                 `gorm:"uniqueIndex;size:50" json:"dian_number"`
 	Status         InvoiceStatus          `gorm:"size:20;default:'pending'" json:"status"`

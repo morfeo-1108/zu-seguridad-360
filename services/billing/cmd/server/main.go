@@ -9,6 +9,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/zu-seguridad/billing/config"
+	"github.com/zu-seguridad/billing/internal/handler"
+	"github.com/zu-seguridad/billing/internal/middleware"
+	"github.com/zu-seguridad/billing/internal/model"
+	"github.com/zu-seguridad/billing/internal/service"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -26,15 +30,30 @@ func main() {
 	if err := sqlDB.Ping(); err != nil {
 		log.Fatalf("Billing database ping failed: %v", err)
 	}
+	if cfg.AutoMigrate {
+		if err := db.AutoMigrate(&model.Subscription{}, &model.Invoice{}, &model.IdempotencyKey{}, &model.OutboxEvent{}); err != nil {
+			log.Fatalf("Billing migration failed: %v", err)
+		}
+	} else {
+		log.Println("AUTO_MIGRATE=false; startup assumes subscriptions/invoices schema was provisioned externally")
+	}
 
-	// Billing routes, cron, outbox relay, and startup migrations remain disabled
-	// until authentication, sandbox payment flow, idempotency, and schema changes
-	// have dedicated tests and an explicit release gate.
-	app := fiber.New(fiber.Config{AppName: "ZU Billing — test harness"})
+	// Payment collection (Wompi), cron invoicing, and the outbox relay remain
+	// disabled pending a sandbox payment flow with dedicated tests. The
+	// company-quota check below is read-only (it creates/mutates nothing) and
+	// is required by Core's company creation flow per the per-professional
+	// plan-quota model (basico=10, estandar=20, premium=50 companies), so it
+	// is enabled with real JWT + tenant-scope enforcement.
+	app := fiber.New(fiber.Config{AppName: "ZU Billing"})
 	app.Use(recover.New())
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok", "service": "zu-billing", "mode": "health-only"})
+		return c.JSON(fiber.Map{"status": "ok", "service": "zu-billing", "mode": "quota-check-only"})
 	})
+
+	billingSvc := service.NewBillingService(db)
+	billingH := handler.NewBillingHandler(billingSvc)
+	jwt := middleware.JWTProtected(cfg)
+	app.Get("/v1/tenants/:tenantId/can-add-company", jwt, middleware.TenantScope("tenantId"), billingH.CanAddCompany)
 
 	go func() {
 		if err := app.Listen(":" + cfg.Port); err != nil {

@@ -8,21 +8,64 @@ import (
 	"github.com/zu-seguridad/core/internal/model"
 	"github.com/zu-seguridad/core/internal/repository"
 	"math"
+	"net/http"
 	"strings"
+	"time"
 )
+
+var ErrCompanyQuotaExceeded = fmt.Errorf("adding this company would exceed your plan's company quota")
 
 type CompanyService struct {
 	repo           *repository.CompanyRepository
 	rabbit         *repository.RabbitMQ
 	syntheticPilot bool
+	billingURL     string
+	httpClient     *http.Client
 }
 
-func NewCompanyService(repo *repository.CompanyRepository, rabbit *repository.RabbitMQ, syntheticPilot ...bool) *CompanyService {
+func NewCompanyService(repo *repository.CompanyRepository, rabbit *repository.RabbitMQ, billingURL string, syntheticPilot ...bool) *CompanyService {
 	var synthetic bool
 	if len(syntheticPilot) > 0 {
 		synthetic = syntheticPilot[0]
 	}
-	return &CompanyService{repo: repo, rabbit: rabbit, syntheticPilot: synthetic}
+	return &CompanyService{
+		repo: repo, rabbit: rabbit, syntheticPilot: synthetic, billingURL: billingURL,
+		httpClient: &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+// checkCompanyQuota asks billing whether tenantID has room for one more
+// company under their active plan. The synthetic pilot has no subscription
+// concept, so this is skipped entirely in that mode.
+func (s *CompanyService) checkCompanyQuota(ctx context.Context, tenantID uuid.UUID, bearerToken string) error {
+	if s.syntheticPilot || s.billingURL == "" {
+		return nil
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.billingURL+"/v1/tenants/"+tenantID.String()+"/can-add-company", nil)
+	if err != nil {
+		return fmt.Errorf("billing quota check request failed: %w", err)
+	}
+	if bearerToken != "" {
+		req.Header.Set("Authorization", bearerToken)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("billing service unavailable: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("billing quota check failed with status %d", resp.StatusCode)
+	}
+	var body struct {
+		Allowed bool `json:"allowed"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return fmt.Errorf("billing quota check returned an invalid response: %w", err)
+	}
+	if !body.Allowed {
+		return ErrCompanyQuotaExceeded
+	}
+	return nil
 }
 
 func (s *CompanyService) List(ctx context.Context, tenantID uuid.UUID) ([]model.Company, error) {
@@ -33,7 +76,10 @@ func (s *CompanyService) ListForUser(ctx context.Context, userID, tenantID uuid.
 	return s.repo.FindAllForUser(ctx, userID, tenantID)
 }
 
-func (s *CompanyService) CreateForUser(ctx context.Context, input CreateCompanyInput, tenantID, userID uuid.UUID) (*model.Company, error) {
+func (s *CompanyService) CreateForUser(ctx context.Context, input CreateCompanyInput, tenantID, userID uuid.UUID, bearerToken string) (*model.Company, error) {
+	if err := s.checkCompanyQuota(ctx, tenantID, bearerToken); err != nil {
+		return nil, err
+	}
 	if s.syntheticPilot {
 		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(input.Name)), "ZU360 PILOTO SINTÉTICO") || !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(input.NIT)), "TEST-NIT-") {
 			return nil, fmt.Errorf("synthetic pilot requires a marked test company name and TEST-NIT identifier")

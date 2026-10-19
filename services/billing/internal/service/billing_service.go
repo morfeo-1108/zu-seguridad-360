@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/zu-seguridad/billing/internal/model"
@@ -10,24 +11,37 @@ import (
 	"time"
 )
 
-// Precios en COP (en centavos)
-var PlanPrices = map[model.PlanCode]int64{
-	model.PlanBasico:   100000000, // $1,000,000 COP
-	model.PlanEstandar: 150000000, // $1,500,000 COP
-	model.PlanPremium:  215000000, // $2,150,000 COP
-	model.PlanDronAdd:  65000000,  // $650,000 COP
+// PlanInfo is the commercial definition of a plan: price and how many client
+// companies a professional may manage under it. dron_addon is not a
+// standalone plan (it carries no company quota of its own) — it is meant to
+// be combined with a base plan; CreateSubscription rejects it alone.
+type PlanInfo struct {
+	PriceMonthly int64 // COP en centavos
+	MaxCompanies int
+}
+
+var Plans = map[model.PlanCode]PlanInfo{
+	model.PlanBasico:   {PriceMonthly: 100000000, MaxCompanies: 10}, // $1,000,000 COP
+	model.PlanEstandar: {PriceMonthly: 150000000, MaxCompanies: 20}, // $1,500,000 COP
+	model.PlanPremium:  {PriceMonthly: 215000000, MaxCompanies: 50}, // $2,150,000 COP
 }
 
 const IVARate = 0.19
+
+var ErrCompanyQuotaExceeded = errors.New("adding this company would exceed the plan's company quota")
+var ErrNoActiveSubscription = errors.New("tenant has no active subscription")
 
 type BillingService struct{ db *gorm.DB }
 
 func NewBillingService(db *gorm.DB) *BillingService { return &BillingService{db: db} }
 
-func (s *BillingService) CreateSubscription(ctx context.Context, companyID, tenantID uuid.UUID, planCode model.PlanCode, wompiToken string) (*model.Subscription, error) {
-	price, ok := PlanPrices[planCode]
+// CreateSubscription provisions one subscription per tenant/professional. A
+// tenant with an existing subscription must cancel/upgrade instead of
+// creating a second one (TenantID is unique).
+func (s *BillingService) CreateSubscription(ctx context.Context, tenantID uuid.UUID, planCode model.PlanCode, wompiToken string) (*model.Subscription, error) {
+	plan, ok := Plans[planCode]
 	if !ok {
-		return nil, fmt.Errorf("plan %s no existe", planCode)
+		return nil, fmt.Errorf("plan %s no existe o no es un plan base con cupo de empresas", planCode)
 	}
 
 	now := time.Now()
@@ -36,9 +50,9 @@ func (s *BillingService) CreateSubscription(ctx context.Context, companyID, tena
 
 	sub := &model.Subscription{
 		TenantID:           tenantID,
-		CompanyID:          companyID,
 		PlanCode:           planCode,
-		PriceMonthly:       price,
+		PriceMonthly:       plan.PriceMonthly,
+		MaxCompanies:       plan.MaxCompanies,
 		Status:             model.SubStatusActive,
 		WompiTokenID:       wompiToken,
 		BillingDay:         1,
@@ -50,8 +64,32 @@ func (s *BillingService) CreateSubscription(ctx context.Context, companyID, tena
 	if err := s.db.WithContext(ctx).Create(sub).Error; err != nil {
 		return nil, err
 	}
-	log.Printf("✅ Suscripción creada: empresa %s, plan %s, $%.0f/mes", companyID, planCode, float64(price)/100)
+	log.Printf("✅ Suscripción creada: tenant %s, plan %s, %d empresas, $%.0f/mes", tenantID, planCode, plan.MaxCompanies, float64(plan.PriceMonthly)/100)
 	return sub, nil
+}
+
+// CanAddCompany reports whether tenantID's active subscription has room for
+// one more client company, counting only non-deleted companies. Core must
+// call this before creating a company; it is the enforcement point for the
+// "plan buys you N companies" model — nothing in Core's own company_service
+// currently checks it.
+func (s *BillingService) CanAddCompany(ctx context.Context, tenantID uuid.UUID) (allowed bool, currentCount, maxCompanies int, err error) {
+	var sub model.Subscription
+	if err := s.db.WithContext(ctx).Where("tenant_id = ? AND status = ?", tenantID, model.SubStatusActive).First(&sub).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, 0, 0, ErrNoActiveSubscription
+		}
+		return false, 0, 0, err
+	}
+
+	var count int64
+	if err := s.db.WithContext(ctx).Table("companies").
+		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+		Count(&count).Error; err != nil {
+		return false, 0, sub.MaxCompanies, err
+	}
+
+	return int(count) < sub.MaxCompanies, int(count), sub.MaxCompanies, nil
 }
 
 func (s *BillingService) GenerateMonthlyInvoices(ctx context.Context) (int, error) {
@@ -63,7 +101,7 @@ func (s *BillingService) GenerateMonthlyInvoices(ctx context.Context) (int, erro
 	count := 0
 	for _, sub := range subs {
 		if _, err := s.generateInvoice(ctx, sub); err != nil {
-			log.Printf("Error generando factura para empresa %s: %v", sub.CompanyID, err)
+			log.Printf("Error generando factura para tenant %s: %v", sub.TenantID, err)
 			continue
 		}
 		count++
@@ -77,7 +115,6 @@ func (s *BillingService) generateInvoice(ctx context.Context, sub model.Subscrip
 
 	invoice := &model.Invoice{
 		TenantID:       sub.TenantID,
-		CompanyID:      sub.CompanyID,
 		SubscriptionID: sub.ID,
 		DIANNumber:     s.generateDIANNumber(),
 		Status:         model.InvoiceStatusPending,

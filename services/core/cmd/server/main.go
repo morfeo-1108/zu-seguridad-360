@@ -61,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("authentication initialization failed: %v", err)
 	}
-	companySvc := service.NewCompanyService(companyRepo, amqp, cfg.SyntheticPilotEnabled)
+	companySvc := service.NewCompanyService(companyRepo, amqp, cfg.BillingURL, cfg.SyntheticPilotEnabled)
 	employeeSvc := service.NewEmployeeService(employeeRepo, amqp, cfg.SyntheticPilotEnabled)
 	incidentSvc := service.NewIncidentService(incidentRepo, amqp, cfg.SyntheticPilotEnabled)
 	trainingSvc := service.NewTrainingService(db, amqp, cfg.SyntheticPilotEnabled)

@@ -3,7 +3,8 @@ package config
 import "os"
 
 type Config struct {
-	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey string
+	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey, JWTSecret string
+	AutoMigrate                                                  bool
 }
 
 func Load() *Config {
@@ -13,6 +14,8 @@ func Load() *Config {
 		RabbitMQURL: env("RABBITMQ_URL", "amqp://zurabbit:zurabbit123@rabbitmq:5672/zu_vhost"),
 		WompiURL:    env("WOMPI_URL", "https://production.wompi.co/v1"),
 		WompiKey:    env("WOMPI_KEY", ""),
+		JWTSecret:   env("JWT_SECRET", "zu-super-secret-key-change-in-prod"),
+		AutoMigrate: env("AUTO_MIGRATE", "false") == "true",
 	}
 }
 func env(k, d string) string {
