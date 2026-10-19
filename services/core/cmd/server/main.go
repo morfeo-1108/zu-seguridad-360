@@ -24,6 +24,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.LoadVaultSecrets(); err != nil {
+		log.Fatalf("vault secret loading failed: %v", err)
+	}
 	if err := cfg.ValidateProduction(); err != nil {
 		log.Fatalf("unsafe production configuration: %v", err)
 	}

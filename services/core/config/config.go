@@ -40,8 +40,10 @@ type Config struct {
 	JWTExpireHours int
 	JWTRefreshDays int
 
-	VaultAddr  string
-	VaultToken string
+	VaultEnabled bool
+	VaultAddr    string
+	VaultToken   string
+	VaultPath    string
 
 	AWSRegion          string
 	AWSAccessKeyID     string
@@ -93,8 +95,10 @@ func Load() *Config {
 		JWTExpireHours: 8,
 		JWTRefreshDays: 7,
 
-		VaultAddr:  getEnv("VAULT_ADDR", "http://localhost:8200"),
-		VaultToken: getEnv("VAULT_TOKEN", "zu-vault-dev-token"),
+		VaultEnabled: strings.EqualFold(getEnv("VAULT_ENABLED", "false"), "true"),
+		VaultAddr:    getEnv("VAULT_ADDR", "http://localhost:8200"),
+		VaultToken:   getEnv("VAULT_TOKEN", "zu-vault-dev-token"),
+		VaultPath:    getEnv("VAULT_SECRET_PATH", "secret/data/zu360/core"),
 
 		AWSRegion: getEnv("AWS_REGION", "us-east-1"),
 		S3Bucket:  getEnv("S3_BUCKET", "zu-documents"),
