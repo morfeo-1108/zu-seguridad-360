@@ -49,7 +49,7 @@ type Incident struct {
 	FURATData         JSONB            `gorm:"type:jsonb" json:"furat_data"`
 	FURATSentAt       *time.Time       `json:"furat_sent_at"`
 	ARLReportedAt     *time.Time       `json:"arl_reported_at"`
-	EvidenceURLs      JSONB            `gorm:"type:jsonb;default:'[]'" json:"evidence_urls"`
+	EvidenceURLs      JSONBArray       `gorm:"type:jsonb;default:'[]'" json:"evidence_urls"`
 	LegalHold         bool             `gorm:"default:false" json:"legal_hold"`
 	InvestigatedBy    *uuid.UUID       `gorm:"type:uuid" json:"investigated_by"`
 	InvestigatedAt    *time.Time       `json:"investigated_at"`

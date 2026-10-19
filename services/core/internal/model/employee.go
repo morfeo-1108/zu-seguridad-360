@@ -38,8 +38,8 @@ type Employee struct {
 	StartDate          *time.Time     `json:"start_date"`
 	Status             EmployeeStatus `gorm:"default:'active'" json:"status"`
 	FaceEncodingURL    string         `gorm:"size:500" json:"face_encoding_url"`
-	ActiveRestrictions JSONB          `gorm:"type:jsonb;default:'[]'" json:"active_restrictions"`
-	EPPRequired        JSONB          `gorm:"type:jsonb;default:'[]'" json:"epp_required"`
+	ActiveRestrictions JSONBArray     `gorm:"type:jsonb;default:'[]'" json:"active_restrictions"`
+	EPPRequired        JSONBArray     `gorm:"type:jsonb;default:'[]'" json:"epp_required"`
 	Metadata           JSONB          `gorm:"type:jsonb" json:"metadata"`
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`

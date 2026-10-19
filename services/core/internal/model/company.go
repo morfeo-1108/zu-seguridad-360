@@ -1,6 +1,10 @@
 package model
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"time"
@@ -59,6 +63,59 @@ func (Company) TableName() string { return "companies" }
 
 // JSONB helper
 type JSONB map[string]interface{}
+
+// Scan implements sql.Scanner so GORM can populate JSONB columns read back from Postgres.
+func (j *JSONB) Scan(value interface{}) error {
+	if value == nil {
+		*j = nil
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("JSONB: unsupported Scan source, expected []byte")
+	}
+	if len(bytes) == 0 {
+		*j = nil
+		return nil
+	}
+	return json.Unmarshal(bytes, j)
+}
+
+// Value implements driver.Valuer so GORM can persist JSONB columns to Postgres.
+func (j JSONB) Value() (driver.Value, error) {
+	if j == nil {
+		return nil, nil
+	}
+	return json.Marshal(j)
+}
+
+// JSONBArray helper for jsonb columns whose default/shape is a JSON array rather than an object.
+type JSONBArray []interface{}
+
+// Scan implements sql.Scanner so GORM can populate array-shaped JSONB columns.
+func (j *JSONBArray) Scan(value interface{}) error {
+	if value == nil {
+		*j = nil
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("JSONBArray: unsupported Scan source, expected []byte")
+	}
+	if len(bytes) == 0 {
+		*j = nil
+		return nil
+	}
+	return json.Unmarshal(bytes, j)
+}
+
+// Value implements driver.Valuer so GORM can persist array-shaped JSONB columns.
+func (j JSONBArray) Value() (driver.Value, error) {
+	if j == nil {
+		return nil, nil
+	}
+	return json.Marshal(j)
+}
 
 func (c *Company) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {

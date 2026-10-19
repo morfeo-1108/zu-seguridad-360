@@ -51,7 +51,7 @@ type Zone struct {
 	NormRef   string    `gorm:"size:60" json:"norm_ref"`
 
 	// Reconocimiento de zona: geocerca (polígono GPS) + marcadores visuales
-	GeofencePolygon JSONB  `gorm:"type:jsonb" json:"geofence_polygon"` // [[lat,lng],...]
+	GeofencePolygon JSONB  `gorm:"type:jsonb" json:"geofence_polygon"` // GeoJSON-style object; see zone_service.go
 	VisualMarkerID  string `gorm:"size:60" json:"visual_marker_id"`    // ArUco/QR físico en la zona
 	RiskClass       string `gorm:"size:10" json:"risk_class"`          // alto/medio/bajo
 

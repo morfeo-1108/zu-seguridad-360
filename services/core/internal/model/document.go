@@ -36,13 +36,13 @@ type Document struct {
 	FileSize    int64          `json:"file_size"`
 	QRCode      string         `gorm:"size:500" json:"qr_code"`
 	ChecksumSHA string         `gorm:"size:64" json:"checksum_sha"`
-	Signers     JSONB          `gorm:"type:jsonb;default:'[]'" json:"signers"`
+	Signers     JSONBArray     `gorm:"type:jsonb;default:'[]'" json:"signers"`
 	SignedAt    *time.Time     `json:"signed_at"`
 	PublishedAt *time.Time     `json:"published_at"`
 	ExpiresAt   *time.Time     `gorm:"index" json:"expires_at"`
 	GeneratedBy uuid.UUID      `gorm:"type:uuid" json:"generated_by"`
 	AIGenerated bool           `gorm:"default:false" json:"ai_generated"`
-	NormRefs    JSONB          `gorm:"type:jsonb;default:'[]'" json:"norm_refs"`
+	NormRefs    JSONBArray     `gorm:"type:jsonb;default:'[]'" json:"norm_refs"`
 	Metadata    JSONB          `gorm:"type:jsonb" json:"metadata"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`

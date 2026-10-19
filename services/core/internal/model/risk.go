@@ -32,7 +32,7 @@ type RiskEntry struct {
 	NC             int            `gorm:"column:nc" json:"nc"` // Nivel Consecuencia
 	NR             int            `gorm:"column:nr" json:"nr"` // Nivel Riesgo = NP×NC
 	Acceptability  RiskLevel      `gorm:"size:20" json:"acceptability"`
-	Controls       JSONB          `gorm:"type:jsonb;default:'[]'" json:"controls"`
+	Controls       JSONBArray     `gorm:"type:jsonb;default:'[]'" json:"controls"`
 	CurrentControl string         `gorm:"size:500" json:"current_control"`
 	ActionPlan     JSONB          `gorm:"type:jsonb" json:"action_plan"`
 	AssessedBy     *uuid.UUID     `gorm:"type:uuid" json:"assessed_by"`

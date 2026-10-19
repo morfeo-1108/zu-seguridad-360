@@ -34,7 +34,7 @@ type MedicalExam struct {
 	PerformedAt    *time.Time     `json:"performed_at"`
 	ExpiresAt      *time.Time     `gorm:"index" json:"expires_at"`
 	AptitudeResult AptitudeResult `gorm:"size:30;default:'pendiente_revision'" json:"aptitude_result"`
-	Restrictions   JSONB          `gorm:"type:jsonb;default:'[]'" json:"restrictions"`
+	Restrictions   JSONBArray     `gorm:"type:jsonb;default:'[]'" json:"restrictions"`
 	OCRRawData     JSONB          `gorm:"type:jsonb" json:"ocr_raw_data"`
 	OCRConfidence  float64        `json:"ocr_confidence"`
 	DocumentURL    string         `gorm:"size:500" json:"document_url"`
