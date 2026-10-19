@@ -59,6 +59,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env.dev"
+        extra = "ignore"  # .env.example carries template vars (e.g. AI_URL) other
+        # services use to reach this one; they aren't settings this service reads.
 
 
 settings = Settings()

@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env.dev"
+        extra = "ignore"  # .env.example carries template vars (REDIS_*, JWT_SECRET,
+        # AI_URL) this service's Settings model doesn't declare as fields.
 
 
 settings = Settings()

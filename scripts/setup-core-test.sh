@@ -6,10 +6,15 @@ cd "$ROOT"
 ./scripts/assert-local-docker.sh
 command -v curl >/dev/null || { echo 'ERROR: curl is required' >&2; exit 2; }
 
-# Only Core's local configuration is needed for this reduced test profile.
-if [[ ! -f services/core/.env.dev ]]; then
-  cp services/core/.env.example services/core/.env.dev
-fi
+# docker-compose.dev.yml declares env_file for all 12 services, so `compose config`
+# fails validation unless every service has a .env.dev — even though this reduced
+# profile only starts Postgres/Redis/RabbitMQ/Core. Generate the missing ones from
+# their .env.example so validation (and any later `make dev`) doesn't break.
+for svc in core ai attention autopilot billing documents drone mail media notifications onboarding sla; do
+  if [[ ! -f "services/$svc/.env.dev" ]]; then
+    cp "services/$svc/.env.example" "services/$svc/.env.dev"
+  fi
+done
 set_local_env() {
   local key="$1" value="$2" file="services/core/.env.dev"
   if grep -q "^${key}=" "$file"; then
@@ -25,8 +30,10 @@ set_local_env DB_HOST postgres
 set_local_env DB_NAME zu_core_synthetic
 
 docker compose -f docker-compose.dev.yml config --quiet
-echo 'Starting only the local Postgres dependency...'
-docker compose -f docker-compose.dev.yml up -d postgres
+# Core's health check requires Postgres AND Redis AND RabbitMQ to connect — it retries
+# forever instead of failing fast, so starting only Postgres leaves /v1/health stuck.
+echo 'Starting local Postgres/Redis/RabbitMQ dependencies...'
+docker compose -f docker-compose.dev.yml up -d postgres redis rabbitmq
 
 ready=0
 for _ in $(seq 1 60); do
