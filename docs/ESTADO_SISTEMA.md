@@ -185,3 +185,138 @@ por profesional con cupo de empresas. Si el modelo de negocio real es el segundo
 esquema de `billing` necesita rediseño, no solo configuración. El propio
 `docs/production/AUDITORIA_TECNICA_BASELINE.md` ya señalaba como pendiente "implementar
 catálogo versionado de planes, entitlements, cuotas, seat/storage limits".
+
+## 2. Correcciones y desbloqueos ejecutados en la misma sesión, por decisión explícita del usuario
+
+Todo lo siguiente se hizo **después** de la Fase 2 (gap analysis), con aprobación explícita
+del usuario para: (a) quitar los flags de bloqueo de AI/biometría/OCR/medical/PHVA/
+Documents, (b) dejar scaffolding de integraciones externas sin credenciales reales,
+(c) rediseñar billing a plan-por-profesional, (d) ejecutar el resto de ingeniería pura
+sin pedir permiso paso a paso. Cada punto se verificó con `go build`/`go test`/`pytest`
+reales, y los más críticos además contra Docker real.
+
+### 2.1 Pipeline de tests arreglado de punta a punta
+`make test` ya corre limpio en una sola pasada (antes, el primer fallo de AI cortaba la
+ejecución con `set -e` y los 10 tests de Documents nunca llegaban a correr). Se arregló
+`asyncio.get_event_loop()` roto en Python 3.14, se corrigió que `setup-core-test.sh` solo
+generaba `.env.dev` para `core` (rompía la validación de `docker compose config` con los
+otros 11 servicios), y se descubrió que el perfil "solo Core" nunca podía pasar su propio
+healthcheck sin Redis+RabbitMQ también corriendo (reintenta indefinidamente sin fallar).
+
+### 2.2 Backup y restore reales, no solo el script
+`make backup-db` y `make test-restore` existen y se ejecutaron de verdad: backup de 74 KB,
+restore en una base descartable con conteo de filas idéntico en las 4 tablas comparadas.
+Antes de hoy no existía ningún mecanismo de backup.
+
+### 2.3 Medical exams, PHVA y Evidence: desbloqueados, pero no como se pidió literalmente
+Al intentar simplemente "quitar el flag", se encontró que:
+- `MedicalExamService` era un stub completo (todo método devolvía el mismo error sin
+  tocar la base). Se implementó de verdad, respetando el mismo gate de `PILOT_SYNTHETIC_ENABLED`
+  que ya usan employees/incidents/trainings.
+- Evidence y PHVA solo validaban `tenant_id`, no `company_id`, y tomaban el `company_id`
+  del body/query enviado por el cliente — un profesional con token activo en la empresa A1
+  podía leer/escribir evidencia y registros PHVA de la empresa A2 de su mismo tenant,
+  saltándose el flujo de `switch-company`. Se corrigió forzando `company_id` desde el
+  claim del token en cada punto, nunca desde el cliente.
+- Verificado contra Postgres real: programar y revisar un examen médico bajo A1 funciona
+  (200/201); el mismo examen es inalcanzable al cambiar a A2 (400 "record not found");
+  PHVA init y registro de evidencia funcionan bajo A1.
+- **Drones/autopilot se dejaron bloqueados a propósito.** No son un flag: el binario real
+  (`main.go`) rechaza arrancar con `log.Fatal` si `DRONE_ENABLED=true`, con el mensaje
+  "disabled until verified identity, tenant scope, operator authorization, and hardware
+  safety checks are implemented". No hay código de autorización ni de seguridad física
+  para control de vuelo real detrás de ese flag — forzarlo no es "desbloquear", es exponer
+  control de hardware sin ningún control de seguridad. Se dejó intacto.
+
+### 2.4 AI/visión/biometría/OCR: desbloqueados, con dos huecos de autenticación cerrados
+Al revisar `app/core/feature_gates.py` (que bloqueaba OCR y zone-inspection incluso con
+todos los flags en `true`, "pending verified Core consent/company authorization
+integration"), se encontró:
+- `/v1/vision/infer` no tenía autenticación alguna; `company_id` era un campo de
+  formulario controlado por el cliente. Se agregó `Depends(get_current_user)` y ahora
+  `company_id` viene del token.
+- `/v1/zone-inspection/enroll-biometric` solo validaba `tenant_id`; un profesional podía
+  enrolar datos biométricos de un trabajador de otra empresa de su mismo tenant. Se agregó
+  verificación real de membership contra Core antes de enrolar.
+- `agents.py` y `zone_inspection.py` importaban `get_current_user`, que **no existía** en
+  `app/core/auth.py` — el servicio de IA no podía arrancar en absoluto, nunca se había
+  probado porque Docker nunca estuvo disponible antes de esta sesión.
+- `ai/.env.example` y `documents/.env.example` tenían `DATABASE_URL` con el esquema de Go
+  (`postgres://`) en vez de SQLAlchemy (`postgresql+asyncpg://`) — ambos servicios habrían
+  caído al arrancar.
+- `consent_verified` en el enrolamiento biométrico sigue siendo un booleano que reporta el
+  propio cliente, sin verificación real. Esto no se arregló ni se puede arreglar sin un
+  sistema real de captura de consentimiento — queda documentado como hueco, no oculto.
+
+### 2.5 Documents: se le agregó la autenticación que nunca tuvo
+Antes de abrir el allowlist, se encontró que `generate_document`, `generate_certificate` y
+ambos reportes **no tenían ningún `Depends`, ningún JWT, nada** — era un generador de
+documentos/certificados completamente anónimo. Se agregó `app/core/auth.py` (mismo
+esquema JWT de Core) y se exige en cada ruta de generación. `/v1/certificates/verify/*`
+sigue público a propósito (verificación por QR). Límite que sigue abierto: este servicio
+no tiene acceso directo a la base de Core, así que no puede verificar que los campos del
+body (nombre, empresa, NIT) correspondan a la empresa activa del que llama — solo que
+está autenticado.
+
+### 2.6 Billing: rediseñado a plan-por-profesional, con cupo aplicado de verdad
+`Subscription` pasó de ser por empresa (`CompanyID uniqueIndex`) a ser por
+tenant/profesional (`TenantID uniqueIndex`, `MaxCompanies`: básico=10, estándar=20,
+premium=50). Billing expone `GET /v1/tenants/:id/can-add-company` (JWT real, un tenant
+solo puede consultar su propio cupo) y Core la llama antes de crear una empresa no
+sintética, **fallando cerrado** si billing no responde (no se asume permiso). Cubierto con
+tests que mockean la llamada HTTP (permitir/denegar/no disponible/omitido en modo
+sintético) — no se probó aún contra un par Core+Billing reales en Docker porque la
+descarga de la imagen base se volvió muy lenta a mitad de sesión (condición de red de esta
+máquina, no un bug de código).
+
+### 2.7 Notificaciones: WhatsApp y push dejaron de simular éxito
+`sendWhatsApp` y `sendPush` registraban un log y devolvían éxito **sin intentar nada**,
+sin credenciales, sin llamada real. Para un canal que escala hallazgos críticos de
+seguridad (falta de arnés, etc.), reportar éxito falso es peor que no tener el canal. Ambos
+ahora hacen una llamada HTTP real (WhatsApp Business Cloud API / FCM legacy) y devuelven
+`Success: false` con el motivo exacto si no hay credenciales o la llamada falla.
+
+### 2.8 Wompi: cliente real, no simulado
+`internal/wompi` implementa `CreateTransaction` (API de pagos) y `VerifyEventSignature`
+(checksum de webhooks), ambos honestos: sin llave privada configurada, devuelven error
+explícito, nunca una transacción fabricada. Están modelados sobre el contrato
+públicamente documentado de Wompi, pero **nunca se ejecutaron contra el sandbox o
+producción reales de Wompi** porque no hay credenciales en este entorno — antes de un
+cobro real hay que verificar los nombres/formas exactas de los campos contra la
+documentación vigente de Wompi. `BillingService.ChargeInvoice` y
+`POST /v1/webhooks/wompi` ya están conectados y probados con un servidor Wompi simulado.
+
+### 2.9 DIAN, ARL (FURAT), Textract, Sophos: estado real, sin inventar nada
+- **DIAN**: no se construyó un cliente real. Facturación electrónica real requiere una
+  resolución de facturación vigente y un certificado digital para firmar XML UBL 2.1 —
+  son credenciales legales que solo el usuario puede tramitar, y sin ellas cualquier
+  cliente que yo construya sería, en el mejor caso, decorativo. Se deja explícitamente
+  pendiente, no simulado.
+- **FURAT/ARLs**: `GenerateFURAT` ya era honesto antes de esta sesión (`"simulated_preview"`,
+  no se transmite a ARL) y se dejó así. Construir la transmisión real requiere el formato
+  específico de cada ARL (Sura/Positiva/Colmena no comparten API), que no está documentado
+  en este repositorio ni se puede inventar de forma responsable.
+- **AWS Textract**: ya estaba implementado con el SDK real (`boto3`) en
+  `services/ai/app/api/ocr.py`; solo falta que el usuario cargue credenciales AWS reales.
+- **Sophos Intelix**: `scanWithSophos` ya era honesto (comentario explícito "simulación";
+  solo bloquea ejecutables por cabecera MZ) — no mentía sobre haber escaneado con Sophos,
+  así que no se tocó.
+
+### 2.10 Vault: integración real en Core; patrón replicable en los otros 11
+Antes, `VaultAddr`/`VaultToken` solo se usaban para rechazar el token de desarrollo en
+producción — ninguna credencial se leía realmente de Vault. Se agregó
+`Config.LoadVaultSecrets()` (KV v2), gateado por `VAULT_ENABLED=false` por defecto (no
+cambia ningún comportamiento ya verificado). Si se activa, una falla de lectura es fatal
+(no se sigue con el valor local). Probado contra un servidor Vault simulado. **No
+replicado a los otros 11 servicios** — es el mismo patrón mecánico, pero no alcanzó el
+tiempo de esta sesión.
+
+### 2.11 Guardia estructural de autenticación (no la matriz RBAC completa)
+Se agregó un test que lee el propio `main.go` y falla si algún grupo de rutas o ruta
+suelta no incluye el middleware JWT — se verificó que detecta la regresión real
+(se quitó `jwt` de un grupo a propósito, el test falló, se restauró). Esto **no es** la
+matriz completa de rol×tenant×empresa×verbo sobre las ~127 rutas de Core que pediría una
+auditoría RBAC exhaustiva — esa requiere una base real con fixtures de los 7 roles y es un
+trabajo considerablemente más grande. Lo que existe hoy es una red de seguridad barata
+contra el error más costoso (registrar una ruta nueva sin autenticación), no un sustituto
+de la matriz completa.
