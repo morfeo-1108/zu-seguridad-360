@@ -210,8 +210,9 @@ func main() {
 	system.Get("/roles", metaH.Roles)
 	system.Get("/tenancy", metaH.Tenancy)
 	system.Get("/capabilities", metaH.Capabilities)
-	// Evidence and agent-event routes remain closed until object-level company
-	// scope and data minimization are proven by integration tests.
+	// Agent-event routes remain closed until object-level company scope and
+	// data minimization are proven by integration tests (evidence was fixed
+	// and registered above).
 
 	// ── Start ────────────────────────────────────────────────
 	addr := fmt.Sprintf(":%s", cfg.Port)
