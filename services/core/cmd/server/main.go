@@ -81,6 +81,7 @@ func main() {
 	alertSvc := service.NewAlertService(medicalSvc, eppSvc, riskSvc, legalSvc)
 	portfolioSvc := service.NewPortfolioService(db, companyRepo)
 	checklistTemplateSvc := service.NewChecklistTemplateService(db)
+	zoneSvc := service.NewZoneService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -101,6 +102,7 @@ func main() {
 	alertH := handler.NewAlertHandler(alertSvc)
 	portfolioH := handler.NewPortfolioHandler(portfolioSvc)
 	checklistTemplateH := handler.NewChecklistTemplateHandler(checklistTemplateSvc)
+	zoneH := handler.NewZoneHandler(zoneSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -259,6 +261,15 @@ func main() {
 	checklistTpl.Post("/", checklistTemplateH.Create)
 	checklistTpl.Get("/:id", checklistTemplateH.GetByID)
 	checklistTpl.Delete("/:id", checklistTemplateH.Delete)
+
+	// Zonas y protocolos: solo el catálogo de checklist por tipo de zona
+	// (datos, sin IA/biometría/dron). Draft normativo — ver nota en
+	// ZoneService.SafetyProtocolCatalogEnabled y el banner del frontend.
+	proj := app.Group("/v1/companies/:companyId/projects", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "zones"))
+	proj.Get("/", zoneH.ListProjects)
+	proj.Post("/", zoneH.CreateProject)
+	proj.Post("/:projectId/zones", zoneH.CreateZone)
+	app.Get("/v1/companies/:companyId/zones/:zoneId/checklist", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "zones"), zoneH.GetChecklist)
 
 	// Matriz de riesgos GTC-45 / IPEVR
 	risk := app.Group("/v1/companies/:companyId/risks", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "risks"))

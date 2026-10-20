@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { alertAPI, checklistTemplateAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, type AlertAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PortfolioCompanyRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, attentionAPI, checklistTemplateAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -107,4 +107,16 @@ export type PortfolioCompany = PortfolioCompanyRecord;
 
 export function usePortfolio() {
   return useQuery({ queryKey: ["portfolio"], queryFn: async () => (await portfolioAPI.summary()).data.data, staleTime: 30_000, retry: 1 });
+}
+
+export type AttentionItem = AttentionItemAPIRecord;
+
+export function useAttentionInbox() {
+  return useQuery({ queryKey: ["attention-inbox"], queryFn: async () => (await attentionAPI.inbox()).data.data, staleTime: 15_000, retry: 1 });
+}
+
+export type Project = ProjectAPIRecord;
+
+export function useProjects(companyId: string) {
+  return useQuery({ queryKey: ["projects", companyId], queryFn: async () => (await zoneAPI.listProjects(companyId)).data.data, enabled: !!companyId, retry: 1 });
 }

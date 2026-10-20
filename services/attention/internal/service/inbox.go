@@ -2,26 +2,28 @@ package service
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"sort"
 	"time"
+
+	"github.com/zu-seguridad/attention/internal/model"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // AttentionItem es un item priorizado en el inbox maestro
 type AttentionItem struct {
-	ID           string     `json:"id"`
-	TenantID     string     `json:"tenant_id"`
-	CompanyID    string     `json:"company_id"`
-	CompanyName  string     `json:"company_name"`
-	Type         string     `json:"type"` // incident | medical | document | drone | cert | copasst
-	Title        string     `json:"title"`
-	Description  string     `json:"description"`
-	Urgency      string     `json:"urgency"`  // critical | high | medium | low
-	Priority     int        `json:"priority"` // score calculado
-	ActionURL    string     `json:"action_url"`
-	CreatedAt    time.Time  `json:"created_at"`
-	SLABreachAt  *time.Time `json:"sla_breach_at"`
-	Acknowledged bool       `json:"acknowledged"`
+	ID          string     `json:"id"`
+	TenantID    string     `json:"tenant_id"`
+	CompanyID   string     `json:"company_id"`
+	CompanyName string     `json:"company_name"`
+	Type        string     `json:"type"` // incident | medical | document | drone | cert | copasst
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Urgency     string     `json:"urgency"`  // critical | high | medium | low
+	Priority    int        `json:"priority"` // score calculado
+	ActionURL   string     `json:"action_url"`
+	CreatedAt   time.Time  `json:"created_at"`
+	SLABreachAt *time.Time `json:"sla_breach_at"`
 }
 
 // PriorityWeights para calcular score de prioridad
@@ -63,6 +65,7 @@ func (s *InboxService) GetPrioritizedInbox(ctx context.Context, tenantID string)
 		FROM incidents i
 		JOIN companies c ON c.id = i.company_id
 		WHERE i.tenant_id = ? AND i.status = 'open' AND i.investigated_at IS NULL
+		  AND NOT EXISTS (SELECT 1 FROM attention_acks a WHERE a.item_id = i.id::text AND a.tenant_id = i.tenant_id::text)
 		ORDER BY i.occurred_at DESC
 		LIMIT 10
 	`, tenantID).Scan(&items)
@@ -74,13 +77,14 @@ func (s *InboxService) GetPrioritizedInbox(ctx context.Context, tenantID string)
 			me.id, me.tenant_id, me.company_id, c.name AS company_name,
 			'medical' AS type, 'high' AS urgency,
 			CONCAT('Aptitud médica pendiente — ', e.first_name, ' ', e.last_name) AS title,
-			CONCAT('Examen ', me.type, ' en ', me.ips_name) AS description,
+			CONCAT('Examen ', me.type, ' en ', me.ip_s_name) AS description,
 			CONCAT('/medical-exams/', me.id, '/review') AS action_url,
 			me.created_at
 		FROM medical_exams me
 		JOIN companies c ON c.id = me.company_id
 		JOIN employees e ON e.id = me.employee_id
 		WHERE me.tenant_id = ? AND me.aptitude_result = 'pendiente_revision'
+		  AND NOT EXISTS (SELECT 1 FROM attention_acks a WHERE a.item_id = me.id::text AND a.tenant_id = me.tenant_id::text)
 		ORDER BY me.created_at ASC
 		LIMIT 10
 	`, tenantID).Scan(&medItems)
@@ -99,6 +103,7 @@ func (s *InboxService) GetPrioritizedInbox(ctx context.Context, tenantID string)
 		FROM documents d
 		JOIN companies c ON c.id = d.company_id
 		WHERE d.tenant_id = ? AND d.status = 'signing'
+		  AND NOT EXISTS (SELECT 1 FROM attention_acks a WHERE a.item_id = d.id::text AND a.tenant_id = d.tenant_id::text)
 		ORDER BY d.created_at ASC
 		LIMIT 10
 	`, tenantID).Scan(&docItems)
@@ -116,9 +121,11 @@ func (s *InboxService) GetPrioritizedInbox(ctx context.Context, tenantID string)
 }
 
 func (s *InboxService) Acknowledge(ctx context.Context, itemID, tenantID string) error {
-	return s.db.WithContext(ctx).Table("attention_items").
-		Where("id = ? AND tenant_id = ?", itemID, tenantID).
-		Update("acknowledged", true).Error
+	ack := model.AttentionAck{ItemID: itemID, TenantID: tenantID, AcknowledgedAt: time.Now().UTC()}
+	return s.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "item_id"}, {Name: "tenant_id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"acknowledged_at"}),
+	}).Create(&ack).Error
 }
 
 func (s *InboxService) GetBriefing(ctx context.Context, tenantID string) (map[string]interface{}, error) {

@@ -37,6 +37,7 @@ func (c *Config) LoadVaultSecrets() error {
 	required := map[string]*string{
 		"database_url": &c.DatabaseURL,
 		"rabbitmq_url": &c.RabbitMQURL,
+		"jwt_secret":   &c.JWTSecret,
 	}
 	var missing []string
 	for key, target := range required {

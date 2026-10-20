@@ -17,8 +17,15 @@ func NewZoneService(db *gorm.DB) *ZoneService {
 	return &ZoneService{db: db}
 }
 
-// SafetyProtocolCatalogEnabled must remain false until independent review.
-const SafetyProtocolCatalogEnabled = false
+// SafetyProtocolCatalogEnabled gates the zone/checklist catalog — pure
+// reference data (what EPP a zone type requires per Res. 2400/1979 etc.),
+// no AI, no biometrics, no drone action. It does NOT gate vision inference,
+// biometric identification, or any drone flight/action — those live in the
+// separate AI microservice and remain closed regardless of this flag; some
+// of this catalog's own norm citations are still explicitly marked "pendiente
+// de validación normativa vigente" in ProtocolTemplates below, by design —
+// it is a draft reference, not a certified compliance source.
+const SafetyProtocolCatalogEnabled = true
 
 // ProtocolTemplates is DRAFT ONLY. Do not expose or use operationally until
 // each requirement and legal citation has been reviewed against current
@@ -61,6 +68,26 @@ var ProtocolTemplates = map[model.ZoneType][]model.ChecklistItem{
 	},
 }
 
+// CreateProject crea una obra/proyecto del cliente, contenedor de zonas.
+func (s *ZoneService) CreateProject(ctx context.Context, tenantID, companyID uuid.UUID, name, address string) (*model.Project, error) {
+	if !SafetyProtocolCatalogEnabled {
+		return nil, fmt.Errorf("safety zone protocols are disabled pending normative validation")
+	}
+	project := &model.Project{TenantID: tenantID, CompanyID: companyID, Name: name, Address: address, Status: "active"}
+	return project, s.db.WithContext(ctx).Create(project).Error
+}
+
+// ListProjects lista los proyectos de una empresa con sus zonas y checklist.
+func (s *ZoneService) ListProjects(ctx context.Context, tenantID, companyID uuid.UUID) ([]model.Project, error) {
+	if !SafetyProtocolCatalogEnabled {
+		return nil, fmt.Errorf("safety zone protocols are disabled pending normative validation")
+	}
+	var projects []model.Project
+	err := s.db.WithContext(ctx).Where("tenant_id = ? AND company_id = ?", tenantID, companyID).
+		Preload("Zones.Checklist").Order("created_at DESC").Find(&projects).Error
+	return projects, err
+}
+
 // CreateZone crea una zona y siembra su checklist desde la plantilla normativa.
 func (s *ZoneService) CreateZone(ctx context.Context, tenantID, projectID uuid.UUID, name string, ztype model.ZoneType, geofence model.JSONB, markerID string) (*model.Zone, error) {
 	if !SafetyProtocolCatalogEnabled {
@@ -78,6 +105,16 @@ func (s *ZoneService) CreateZone(ctx context.Context, tenantID, projectID uuid.U
 	}
 
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// The project must belong to this tenant — otherwise any caller who
+		// knows (or guesses) a projectID from another tenant could seed a
+		// zone into it.
+		var count int64
+		if err := tx.Model(&model.Project{}).Where("id = ? AND tenant_id = ?", projectID, tenantID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count != 1 {
+			return gorm.ErrRecordNotFound
+		}
 		if err := tx.Create(zone).Error; err != nil {
 			return err
 		}
@@ -99,23 +136,27 @@ func (s *ZoneService) CreateZone(ctx context.Context, tenantID, projectID uuid.U
 }
 
 // GetZoneChecklist devuelve el checklist que el dron debe validar en una zona.
-func (s *ZoneService) GetZoneChecklist(ctx context.Context, zoneID uuid.UUID) ([]model.ChecklistItem, error) {
+func (s *ZoneService) GetZoneChecklist(ctx context.Context, tenantID, companyID, zoneID uuid.UUID) ([]model.ChecklistItem, error) {
 	if !SafetyProtocolCatalogEnabled {
 		return nil, fmt.Errorf("safety zone protocols are disabled pending normative validation")
 	}
 	var items []model.ChecklistItem
-	err := s.db.WithContext(ctx).Where("zone_id = ?", zoneID).Order("\"order\" ASC").Find(&items).Error
+	err := s.db.WithContext(ctx).
+		Joins("JOIN zones ON zones.id = checklist_items.zone_id").
+		Joins("JOIN projects ON projects.id = zones.project_id").
+		Where("checklist_items.zone_id = ? AND zones.tenant_id = ? AND projects.company_id = ?", zoneID, tenantID, companyID).
+		Order("\"order\" ASC").Find(&items).Error
 	return items, err
 }
 
 // ResolveZoneByLocation determina en qué zona está el dron según su GPS.
 // Reconocimiento de zona por geocerca (point-in-polygon).
-func (s *ZoneService) ResolveZoneByLocation(ctx context.Context, projectID uuid.UUID, lat, lng float64) (*model.Zone, error) {
+func (s *ZoneService) ResolveZoneByLocation(ctx context.Context, tenantID, projectID uuid.UUID, lat, lng float64) (*model.Zone, error) {
 	if !SafetyProtocolCatalogEnabled {
 		return nil, fmt.Errorf("safety zone protocols are disabled pending normative validation")
 	}
 	var zones []model.Zone
-	if err := s.db.WithContext(ctx).Where("project_id = ?", projectID).Find(&zones).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("project_id = ? AND tenant_id = ?", projectID, tenantID).Preload("Checklist").Find(&zones).Error; err != nil {
 		return nil, err
 	}
 	for i := range zones {
@@ -129,13 +170,13 @@ func (s *ZoneService) ResolveZoneByLocation(ctx context.Context, projectID uuid.
 }
 
 // ResolveZoneByMarker determina la zona por marcador visual (ArUco/QR) detectado.
-func (s *ZoneService) ResolveZoneByMarker(ctx context.Context, projectID uuid.UUID, markerID string) (*model.Zone, error) {
+func (s *ZoneService) ResolveZoneByMarker(ctx context.Context, tenantID, projectID uuid.UUID, markerID string) (*model.Zone, error) {
 	if !SafetyProtocolCatalogEnabled {
 		return nil, fmt.Errorf("safety zone protocols are disabled pending normative validation")
 	}
 	var zone model.Zone
 	err := s.db.WithContext(ctx).
-		Where("project_id = ? AND visual_marker_id = ?", projectID, markerID).
+		Where("project_id = ? AND tenant_id = ? AND visual_marker_id = ?", projectID, tenantID, markerID).
 		Preload("Checklist").First(&zone).Error
 	if err != nil {
 		return nil, fmt.Errorf("marcador '%s' no asociado a ninguna zona", markerID)

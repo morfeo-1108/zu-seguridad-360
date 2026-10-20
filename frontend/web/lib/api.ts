@@ -531,3 +531,64 @@ export const trainingAPI = {
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),
   complete: (companyId: string, id: string, employeeIds: string[]) => api.post<{ simulation: true; certificates_created: number; certificates: SyntheticCertificateRecord[]; notice: string }>(`/api/core/companies/${companyId}/trainings/${id}/complete`, { employee_ids: employeeIds }),
 };
+
+export interface AttentionItemAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  company_name: string;
+  type: "incident" | "medical" | "document";
+  title: string;
+  description: string;
+  urgency: "critical" | "high" | "medium" | "low";
+  priority: number;
+  action_url: string;
+  created_at: string;
+  sla_breach_at: string | null;
+}
+
+export const attentionAPI = {
+  inbox: () => api.get<{ data: AttentionItemAPIRecord[]; total: number }>(`/api/attention/inbox`),
+  briefing: () => api.get<{ date: string; total_pending: number; critical_count: number; top_items: AttentionItemAPIRecord[]; generated_at: string }>(`/api/attention/briefing`),
+  acknowledge: (itemId: string) => api.post(`/api/attention/inbox/${itemId}/acknowledge`, {}),
+};
+
+export interface ZoneChecklistItemAPIRecord {
+  id: string;
+  zone_id: string;
+  code: string;
+  description: string;
+  type: string;
+  mandatory: boolean;
+  detection_class: string;
+  norm_ref: string;
+  severity: string;
+  order: number;
+}
+
+export interface ZoneAPIRecord {
+  id: string;
+  project_id: string;
+  name: string;
+  type: string;
+  norm_ref: string;
+  risk_class: string;
+  checklist: ZoneChecklistItemAPIRecord[];
+}
+
+export interface ProjectAPIRecord {
+  id: string;
+  company_id: string;
+  name: string;
+  address: string;
+  status: string;
+  zones: ZoneAPIRecord[];
+}
+
+export const zoneAPI = {
+  listProjects: (companyId: string) => api.get<{ data: ProjectAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/projects`),
+  createProject: (companyId: string, data: { name: string; address: string }) =>
+    api.post<ProjectAPIRecord>(`/api/core/companies/${companyId}/projects`, data),
+  createZone: (companyId: string, projectId: string, data: { name: string; type: string }) =>
+    api.post<ZoneAPIRecord>(`/api/core/companies/${companyId}/projects/${projectId}/zones`, data),
+};

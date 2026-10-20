@@ -9,6 +9,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/zu-seguridad/attention/config"
+	"github.com/zu-seguridad/attention/internal/middleware"
+	"github.com/zu-seguridad/attention/internal/model"
 	"github.com/zu-seguridad/attention/internal/service"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -23,6 +25,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("DB error: %v", err)
 	}
+	if err := db.AutoMigrate(&model.AttentionAck{}); err != nil {
+		log.Fatalf("migration failed: %v", err)
+	}
 
 	inbox := service.NewInboxService(db)
 
@@ -30,22 +35,26 @@ func main() {
 	app.Use(recover.New())
 	app.Get("/health", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok", "service": "zu-attention"}) })
 
-	app.Get("/v1/inbox/:tenantId", func(c *fiber.Ctx) error {
-		items, err := inbox.GetPrioritizedInbox(c.Context(), c.Params("tenantId"))
+	jwt := middleware.JWTProtected(cfg)
+
+	// tenant_id now only ever comes from the verified JWT claim — never from
+	// a URL segment or an X-Tenant-ID header a client could set to any value.
+	app.Get("/v1/inbox", jwt, func(c *fiber.Ctx) error {
+		items, err := inbox.GetPrioritizedInbox(c.Context(), c.Locals("tenant_id").(string))
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(fiber.Map{"data": items, "total": len(items)})
 	})
-	app.Get("/v1/briefing/:tenantId", func(c *fiber.Ctx) error {
-		b, err := inbox.GetBriefing(c.Context(), c.Params("tenantId"))
+	app.Get("/v1/briefing", jwt, func(c *fiber.Ctx) error {
+		b, err := inbox.GetBriefing(c.Context(), c.Locals("tenant_id").(string))
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(b)
 	})
-	app.Post("/v1/inbox/:itemId/acknowledge", func(c *fiber.Ctx) error {
-		if err := inbox.Acknowledge(c.Context(), c.Params("itemId"), c.Get("X-Tenant-ID")); err != nil {
+	app.Post("/v1/inbox/:itemId/acknowledge", jwt, func(c *fiber.Ctx) error {
+		if err := inbox.Acknowledge(c.Context(), c.Params("itemId"), c.Locals("tenant_id").(string)); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		return c.JSON(fiber.Map{"acknowledged": true})

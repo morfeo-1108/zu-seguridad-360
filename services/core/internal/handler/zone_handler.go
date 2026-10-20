@@ -12,6 +12,33 @@ type ZoneHandler struct{ svc *service.ZoneService }
 
 func NewZoneHandler(svc *service.ZoneService) *ZoneHandler { return &ZoneHandler{svc: svc} }
 
+func (h *ZoneHandler) CreateProject(c *fiber.Ctx) error {
+	companyID := mustUUID(c.Locals("company_id"))
+	tenantID := mustUUID(c.Locals("tenant_id"))
+	var body struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "cuerpo inválido")
+	}
+	project, err := h.svc.CreateProject(c.Context(), tenantID, companyID, body.Name, body.Address)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	return c.Status(fiber.StatusCreated).JSON(project)
+}
+
+func (h *ZoneHandler) ListProjects(c *fiber.Ctx) error {
+	companyID := mustUUID(c.Locals("company_id"))
+	tenantID := mustUUID(c.Locals("tenant_id"))
+	projects, err := h.svc.ListProjects(c.Context(), tenantID, companyID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	return c.JSON(fiber.Map{"data": projects, "total": len(projects)})
+}
+
 func (h *ZoneHandler) CreateZone(c *fiber.Ctx) error {
 	projectID, _ := uuid.Parse(c.Params("projectId"))
 	tenantID := mustUUID(c.Locals("tenant_id"))
@@ -33,7 +60,9 @@ func (h *ZoneHandler) CreateZone(c *fiber.Ctx) error {
 
 func (h *ZoneHandler) GetChecklist(c *fiber.Ctx) error {
 	zoneID, _ := uuid.Parse(c.Params("zoneId"))
-	items, err := h.svc.GetZoneChecklist(c.Context(), zoneID)
+	companyID := mustUUID(c.Locals("company_id"))
+	tenantID := mustUUID(c.Locals("tenant_id"))
+	items, err := h.svc.GetZoneChecklist(c.Context(), tenantID, companyID, zoneID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
@@ -43,8 +72,9 @@ func (h *ZoneHandler) GetChecklist(c *fiber.Ctx) error {
 // ResolveByMarker — el dron pregunta "¿en qué zona estoy?" por marcador visual
 func (h *ZoneHandler) ResolveByMarker(c *fiber.Ctx) error {
 	projectID, _ := uuid.Parse(c.Params("projectId"))
+	tenantID := mustUUID(c.Locals("tenant_id"))
 	markerID := c.Query("marker_id")
-	zone, err := h.svc.ResolveZoneByMarker(c.Context(), projectID, markerID)
+	zone, err := h.svc.ResolveZoneByMarker(c.Context(), tenantID, projectID, markerID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	}
@@ -54,14 +84,12 @@ func (h *ZoneHandler) ResolveByMarker(c *fiber.Ctx) error {
 // ResolveByLocation — el dron pregunta por GPS
 func (h *ZoneHandler) ResolveByLocation(c *fiber.Ctx) error {
 	projectID, _ := uuid.Parse(c.Params("projectId"))
+	tenantID := mustUUID(c.Locals("tenant_id"))
 	lat, _ := strconv.ParseFloat(c.Query("lat"), 64)
 	lng, _ := strconv.ParseFloat(c.Query("lng"), 64)
-	zone, err := h.svc.ResolveZoneByLocation(c.Context(), projectID, lat, lng)
+	zone, err := h.svc.ResolveZoneByLocation(c.Context(), tenantID, projectID, lat, lng)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	}
-	// Cargar checklist
-	items, _ := h.svc.GetZoneChecklist(c.Context(), zone.ID)
-	zone.Checklist = items
 	return c.JSON(zone)
 }
