@@ -17,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
@@ -34,11 +35,42 @@ var AllowedMIME = map[string]bool{
 const MaxFileSize = 50 * 1024 * 1024 // 50MB
 
 type UploadHandler struct {
-	s3Client *s3.Client
-	bucket   string
+	s3Client   *s3.Client
+	bucket     string
+	publicBase string // e.g. http://localhost:9000/<bucket> for a local S3-compatible endpoint; empty means real AWS S3
 }
 
-func NewUploadHandler(bucket, region string) *UploadHandler {
+// NewUploadHandler wires either a MinIO-style S3-compatible endpoint (when
+// endpoint/accessKeyID are set — the local dev/pilot default, matching the
+// minio container in docker-compose.dev.yml) or real AWS S3 via the SDK's
+// default credential chain. Before this, the handler always built the real
+// AWS S3 client regardless of the MinIO env vars already defined for it —
+// uploads would have tried to hit real AWS with MinIO's fake credentials.
+func NewUploadHandler(bucket, region, endpoint, publicEndpoint, accessKeyID, secretAccessKey string) *UploadHandler {
+	if endpoint != "" {
+		cfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+			awsconfig.WithRegion(region),
+			awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
+		)
+		if err != nil {
+			log.Printf("S3-compatible config error: %v — usando modo desarrollo", err)
+			return &UploadHandler{bucket: bucket}
+		}
+		client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+			o.UsePathStyle = true // MinIO requires path-style addressing
+		})
+		// endpoint (e.g. http://minio:9000) is the Docker-network address
+		// this service itself uses to reach MinIO; a browser can't resolve
+		// that hostname, so the URL returned to clients uses publicEndpoint
+		// instead (e.g. http://localhost:9000) when set.
+		base := endpoint
+		if publicEndpoint != "" {
+			base = publicEndpoint
+		}
+		return &UploadHandler{s3Client: client, bucket: bucket, publicBase: base + "/" + bucket}
+	}
+
 	cfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(region))
 	if err != nil {
 		log.Printf("AWS config error: %v — usando modo desarrollo", err)
@@ -101,8 +133,13 @@ func (h *UploadHandler) Upload(c *fiber.Ctx) error {
 				"uploaded-at":   time.Now().UTC().Format(time.RFC3339),
 			},
 		}
-		if isWORM {
-			// Object Lock para docs médicos — Res. 2346/2007 (20 años)
+		// Object Lock (retención WORM, 20 años para docs médicos per Res.
+		// 2346/2007) requires the bucket itself to have Object Lock enabled
+		// at creation time — true on real S3 when provisioned that way, not
+		// true for the local MinIO container used in this pilot. Request it
+		// only against a real AWS endpoint; against MinIO it would just
+		// fail the whole upload for a guarantee we can't actually back yet.
+		if isWORM && h.publicBase == "" {
 			input.ObjectLockMode = "COMPLIANCE"
 			input.ObjectLockRetainUntilDate = aws.Time(time.Now().AddDate(20, 0, 0))
 		}
@@ -111,7 +148,11 @@ func (h *UploadHandler) Upload(c *fiber.Ctx) error {
 			log.Printf("S3 upload error: %v", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "error subiendo archivo")
 		}
-		fileURL = fmt.Sprintf("https://%s.s3.amazonaws.com/%s", h.bucket, s3Key)
+		if h.publicBase != "" {
+			fileURL = fmt.Sprintf("%s/%s", h.publicBase, s3Key)
+		} else {
+			fileURL = fmt.Sprintf("https://%s.s3.amazonaws.com/%s", h.bucket, s3Key)
+		}
 	} else {
 		// Dev: retornar URL ficticia
 		fileURL = fmt.Sprintf("http://localhost:9000/%s/%s", h.bucket, s3Key)

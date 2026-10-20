@@ -82,6 +82,7 @@ func main() {
 	portfolioSvc := service.NewPortfolioService(db, companyRepo)
 	checklistTemplateSvc := service.NewChecklistTemplateService(db)
 	zoneSvc := service.NewZoneService(db)
+	documentSvc := service.NewDocumentService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -103,6 +104,7 @@ func main() {
 	portfolioH := handler.NewPortfolioHandler(portfolioSvc)
 	checklistTemplateH := handler.NewChecklistTemplateHandler(checklistTemplateSvc)
 	zoneH := handler.NewZoneHandler(zoneSvc)
+	documentH := handler.NewDocumentHandler(documentSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -270,6 +272,14 @@ func main() {
 	proj.Post("/", zoneH.CreateProject)
 	proj.Post("/:projectId/zones", zoneH.CreateZone)
 	app.Get("/v1/companies/:companyId/zones/:zoneId/checklist", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "zones"), zoneH.GetChecklist)
+
+	// Documentos y fotos de empresa: la subida de bytes ocurre en Media
+	// (services/media, con su propio JWT); aquí solo se guarda el
+	// metadato/URL ya subida, igual al patrón de evidencia fotográfica.
+	docs := app.Group("/v1/companies/:companyId/documents", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "documents"))
+	docs.Get("/", documentH.List)
+	docs.Post("/", documentH.Create)
+	docs.Delete("/:id", documentH.Delete)
 
 	// Matriz de riesgos GTC-45 / IPEVR
 	risk := app.Group("/v1/companies/:companyId/risks", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "risks"))

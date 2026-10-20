@@ -22,7 +22,7 @@ services:
       POSTGRES_PASSWORD: zupassword
       POSTGRES_DB: zu_core_synthetic
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:55432:5432"
     volumes:
       - postgres_synthetic_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -38,7 +38,7 @@ services:
     container_name: zu-redis
     command: redis-server --requirepass zuredis123 --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:56379:6379"
     volumes:
       - redis_data:/data
     networks: [zu-network]
@@ -103,7 +103,7 @@ services:
 
   # ─── OBJECT STORAGE (S3 local) ───────────────────────────
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: zu-minio
     command: server /data --console-address ":9001"
     ports:

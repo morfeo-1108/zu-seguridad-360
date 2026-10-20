@@ -592,3 +592,43 @@ export const zoneAPI = {
   createZone: (companyId: string, projectId: string, data: { name: string; type: string }) =>
     api.post<ZoneAPIRecord>(`/api/core/companies/${companyId}/projects/${projectId}/zones`, data),
 };
+
+export interface MediaUploadResponse {
+  file_id: string;
+  url: string;
+  s3_key: string;
+  size: number;
+  mime_type: string;
+  checksum_sha: string;
+  worm: boolean;
+}
+
+export const mediaAPI = {
+  upload: (file: File, prefix: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("prefix", prefix);
+    return api.post<MediaUploadResponse>(`/api/media/upload`, form, { headers: { "Content-Type": "multipart/form-data" } });
+  },
+};
+
+export interface DocumentAPIRecord {
+  id: string;
+  company_id: string;
+  title: string;
+  category: string;
+  format: string;
+  status: string;
+  file_url: string;
+  file_size: number;
+  checksum_sha: string;
+  created_at: string;
+}
+
+export const documentAPI = {
+  list: (companyId: string, category?: string) =>
+    api.get<{ data: DocumentAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/documents${category ? `?category=${category}` : ""}`),
+  create: (companyId: string, data: { title: string; category: string; format: string; file_url: string; file_size: number; checksum_sha: string }) =>
+    api.post<DocumentAPIRecord>(`/api/core/companies/${companyId}/documents`, data),
+  remove: (companyId: string, id: string) => api.delete(`/api/core/companies/${companyId}/documents/${id}`),
+};

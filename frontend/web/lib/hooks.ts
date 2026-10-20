@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { alertAPI, attentionAPI, checklistTemplateAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, attentionAPI, checklistTemplateAPI, committeeAPI, companyAPI, documentAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type DocumentAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -119,4 +119,10 @@ export type Project = ProjectAPIRecord;
 
 export function useProjects(companyId: string) {
   return useQuery({ queryKey: ["projects", companyId], queryFn: async () => (await zoneAPI.listProjects(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type ZuDocument = DocumentAPIRecord;
+
+export function useDocuments(companyId: string, category?: string) {
+  return useQuery({ queryKey: ["documents", companyId, category], queryFn: async () => (await documentAPI.list(companyId, category)).data.data, enabled: !!companyId, retry: 1 });
 }

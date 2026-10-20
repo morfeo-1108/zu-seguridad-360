@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/zu-seguridad/media/config"
 	"github.com/zu-seguridad/media/internal/handler"
+	"github.com/zu-seguridad/media/internal/middleware"
 )
 
 func main() {
@@ -17,12 +18,12 @@ func main() {
 	if err := cfg.LoadVaultSecrets(); err != nil {
 		log.Fatalf("vault secret loading failed: %v", err)
 	}
-	uploadH := handler.NewUploadHandler(cfg.S3Bucket, cfg.AWSRegion)
+	uploadH := handler.NewUploadHandler(cfg.S3Bucket, cfg.AWSRegion, cfg.S3Endpoint, cfg.S3PublicEndpoint, cfg.AWSAccessKeyID, cfg.AWSSecretAccessKey)
 
 	app := fiber.New(fiber.Config{AppName: "ZU Media v6.0", BodyLimit: 50 * 1024 * 1024})
 	app.Use(recover.New())
 	app.Get("/health", func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"status": "ok", "service": "zu-media"}) })
-	app.Post("/v1/upload", uploadH.Upload)
+	app.Post("/v1/upload", middleware.JWTProtected(cfg), uploadH.Upload)
 
 	go func() {
 		if err := app.Listen(":" + cfg.Port); err != nil {

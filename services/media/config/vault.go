@@ -13,11 +13,11 @@ import (
 // secrets, and silently falling back to whatever default/env value is
 // already in Config would defeat the point. Mirrors services/core/config/vault.go.
 //
-// Media has no "required" secret: S3Bucket/AWSRegion are not credentials
-// (the AWS SDK's own credential chain / IAM role handles auth), and
-// SophosKey is genuinely optional (scanning is skipped without it, by
-// existing design elsewhere in this service). So every override here is
-// optional — only a totally missing/unreadable secret path is fatal.
+// S3Bucket/AWSRegion are not credentials (the AWS SDK's own credential
+// chain / IAM role handles auth), and SophosKey is genuinely optional
+// (scanning is skipped without it, by existing design elsewhere in this
+// service) — but jwt_secret is required now that /v1/upload is behind
+// JWTProtected.
 func (c *Config) LoadVaultSecrets() error {
 	if !c.VaultEnabled {
 		return nil
@@ -39,6 +39,12 @@ func (c *Config) LoadVaultSecrets() error {
 	if !ok {
 		data = secret.Data // KV v1 mounts return the fields directly under secret.Data.
 	}
+
+	value, ok := data["jwt_secret"].(string)
+	if !ok || value == "" {
+		return fmt.Errorf("vault secret at %s is missing required key: jwt_secret", c.VaultPath)
+	}
+	c.JWTSecret = value
 
 	optional := map[string]*string{
 		"sophos_api_key": &c.SophosKey,

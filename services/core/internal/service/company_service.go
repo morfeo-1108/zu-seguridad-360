@@ -183,6 +183,9 @@ func (s *CompanyService) Update(ctx context.Context, id, tenantID uuid.UUID, inp
 	if input.Address != "" {
 		company.Address = input.Address
 	}
+	if input.LogoURL != "" {
+		company.LogoURL = input.LogoURL
+	}
 
 	return company, s.repo.Update(ctx, company)
 }
@@ -272,4 +275,5 @@ type UpdateCompanyInput struct {
 	LegalRepEmail string `json:"legal_rep_email"`
 	LegalRepPhone string `json:"legal_rep_phone"`
 	Address       string `json:"address"`
+	LogoURL       string `json:"logo_url"`
 }
