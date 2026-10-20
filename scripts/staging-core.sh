@@ -96,5 +96,21 @@ core) # 8. Core en staging real
   docker logs --tail 10 zu-core 2>&1
   curl -s http://localhost:4001/v1/auth/google/config; echo
   ;;
-*) echo "uso: $0 secrets|certs|acl|infra|db|rabbit|migrate|core"; exit 2;;
+services) # 9. billing/attention/media: mismo JWT_SECRET que Core y la base zu_core (SSL)
+  set -a; . "$ENVF"; set +a
+  umask 077
+  DBURL="postgres://zu_core_staging:${DB_PASSWORD}@postgres:5432/zu_core?sslmode=require"
+  for s in billing attention media; do
+    f=services/$s/.env
+    { echo "JWT_SECRET=$JWT_SECRET"
+      echo "DATABASE_URL=$DBURL"
+      # "services migrate" la primera vez: billing crea sus tablas en zu_core; luego sin él.
+      [ "$s" = billing ] && echo "AUTO_MIGRATE=$([ "${2:-}" = migrate ] && echo true || echo false)"
+      true; } > "$f"
+    git check-ignore -q "$f" && echo "OK: $f (600, ignorado por git)"
+  done
+  $DC up -d --no-deps billing attention media
+  sleep 10; docker ps --filter name=zu-billing --filter name=zu-attention --filter name=zu-media --format '{{.Names}} {{.Status}}'
+  ;;
+*) echo "uso: $0 secrets|certs|acl|infra|db|rabbit|migrate|core|services"; exit 2;;
 esac

@@ -290,7 +290,12 @@ services:
     container_name: zu-media
     ports:
       - "127.0.0.1:4004:4004"
-    env_file: ./services/media/.env.dev
+    env_file:
+      - ./services/media/.env.dev
+      # Secretos de staging (JWT_SECRET compartido con Core, DATABASE_URL a zu_core
+      # con SSL) — nunca commiteado; opcional para dev local/CI.
+      - path: ./services/media/.env
+        required: false
     depends_on: [minio, rabbitmq]
     networks: [zu-network]
     restart: unless-stopped
@@ -338,7 +343,12 @@ services:
     container_name: zu-attention
     ports:
       - "127.0.0.1:4008:4008"
-    env_file: ./services/attention/.env.dev
+    env_file:
+      - ./services/attention/.env.dev
+      # Secretos de staging (JWT_SECRET compartido con Core, DATABASE_URL a zu_core
+      # con SSL) — nunca commiteado; opcional para dev local/CI.
+      - path: ./services/attention/.env
+        required: false
     depends_on: [postgres, redis]
     networks: [zu-network]
     restart: unless-stopped
@@ -361,7 +371,12 @@ services:
     container_name: zu-billing
     ports:
       - "127.0.0.1:4010:4010"
-    env_file: ./services/billing/.env.dev
+    env_file:
+      - ./services/billing/.env.dev
+      # Secretos de staging (JWT_SECRET compartido con Core, DATABASE_URL a zu_core
+      # con SSL) — nunca commiteado; opcional para dev local/CI.
+      - path: ./services/billing/.env
+        required: false
     depends_on: [postgres, rabbitmq]
     networks: [zu-network]
     restart: unless-stopped
