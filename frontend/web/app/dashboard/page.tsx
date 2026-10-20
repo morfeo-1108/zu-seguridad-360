@@ -1,10 +1,15 @@
 "use client";
 import Link from "next/link";
-import { Building2, Users, Activity, AlertTriangle, ArrowRight, CircleCheck } from "lucide-react";
+import { Building2, Users, Activity, AlertTriangle, ArrowRight, CircleCheck, BellRing } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, Badge, KPICard, PageHeader, Spinner } from "@/components/ui";
-import { useCompanies, useEmployees, useCompanyIncidents } from "@/lib/hooks";
+import { useAlerts, useCompanies, useEmployees, useCompanyIncidents } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/store";
+import { formatDateTime } from "@/lib/utils";
+
+const alertCategoryLabel: Record<string, string> = {
+  medical_exam: "Examen médico", epp: "EPP", risk_review: "Revisión de riesgo", legal_requirement: "Requisito legal",
+};
 
 export default function DashboardPage() {
   const activeCompany = useAuthStore((state) => state.activeCompany);
@@ -12,6 +17,7 @@ export default function DashboardPage() {
   const companyId = activeCompany?.id || "";
   const { data: employeeResponse, isLoading: employeesLoading, isError: employeesError } = useEmployees(companyId);
   const { data: incidents, isLoading: incidentsLoading, isError: incidentsError } = useCompanyIncidents(companyId);
+  const { data: alerts, isLoading: alertsLoading } = useAlerts(companyId);
   const employees = employeeResponse?.data || [];
   const syntheticIncidents = incidents || [];
 
@@ -28,6 +34,26 @@ export default function DashboardPage() {
         <KPICard label="Estado del entorno" value="Sintético" icon={CircleCheck} valueColor="var(--amber)" sub="no habilitado para datos reales"/>
       </div>
       {(companiesError || employeesError || incidentsError) && <Card className="mb-4 border-red-200 bg-red-50 p-3 text-xs text-red-800">Una o más consultas a Core no están disponibles. Los conteos marcados “—” no se sustituyen por datos demo.</Card>}
+
+      <Card className="mb-5 p-4">
+        <div className="mb-3 flex items-center justify-between"><h2 className="flex items-center gap-1.5 text-sm font-bold"><BellRing size={14} className="text-amber-600" /> Alertas y vencimientos</h2></div>
+        {alertsLoading ? <Spinner /> : !alerts?.length ? (
+          <p className="py-3 text-center text-xs text-zu-text3">Sin alertas pendientes en los próximos 30 días para la empresa activa.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {alerts.map((a, i) => (
+              <div key={i} className={`flex items-center justify-between rounded-md px-3 py-2 text-[11px] ${a.severity === "critical" ? "bg-red-50" : "bg-amber-50"}`}>
+                <div>
+                  <span className={`font-semibold ${a.severity === "critical" ? "text-red-900" : "text-amber-900"}`}>{a.title}</span>
+                  <span className="ml-2 text-zu-text3">{a.detail}</span>
+                </div>
+                <Badge variant={a.severity === "critical" ? "red" : "amber"}>{alertCategoryLabel[a.category] || a.category} · {formatDateTime(a.due_at)}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Personas de prueba</h2><Link href="/dashboard/employees" className="text-xs font-semibold text-zu-accent">Gestionar <ArrowRight size={12} className="inline"/></Link></div>

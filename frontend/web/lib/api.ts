@@ -425,6 +425,19 @@ export const legalMatrixAPI = {
     api.put<LegalRequirementAPIRecord>(`/api/core/companies/${companyId}/legal-matrix/${id}/compliance`, data),
 };
 
+export interface AlertAPIRecord {
+  category: string;
+  severity: "critical" | "warning";
+  title: string;
+  detail: string;
+  due_at: string;
+  reference_id: string;
+}
+
+export const alertAPI = {
+  list: (companyId: string) => api.get<{ data: AlertAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/alerts`),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),

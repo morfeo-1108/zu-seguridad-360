@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, riskAPI, trainingAPI, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, riskAPI, trainingAPI, type AlertAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -69,4 +69,10 @@ export type LegalRequirement = LegalRequirementAPIRecord;
 
 export function useLegalMatrix(companyId: string) {
   return useQuery({ queryKey: ["legal-matrix", companyId], queryFn: async () => (await legalMatrixAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type AppAlert = AlertAPIRecord;
+
+export function useAlerts(companyId: string) {
+  return useQuery({ queryKey: ["alerts", companyId], queryFn: async () => (await alertAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
 }
