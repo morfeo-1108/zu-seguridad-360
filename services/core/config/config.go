@@ -31,6 +31,7 @@ type Config struct {
 	DBSSLMode  string
 
 	RedisAddr     string
+	RedisUsername string
 	RedisPassword string
 	RedisDB       int
 
@@ -88,6 +89,7 @@ func Load() *Config {
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 
 		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisUsername: getEnv("REDIS_USERNAME", ""),
 		RedisPassword: getEnv("REDIS_PASSWORD", "zuredis123"),
 
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://zurabbit:zurabbit123@localhost:5672/zu_vhost"),

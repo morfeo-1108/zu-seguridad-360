@@ -11,6 +11,7 @@ volumes:
   weaviate_data:
   vault_data:
   minio_data:
+  pg_certs:
 
 services:
   # ─── BASES DE DATOS ──────────────────────────────────────
@@ -23,9 +24,17 @@ services:
       POSTGRES_DB: zu_core_synthetic
     ports:
       - "127.0.0.1:55432:5432"
+    # SSL habilitado (requerido por ValidateProduction en staging/prod,
+    # DB_SSLMODE=require) — self-signed, basta para cifrar el canal en
+    # un único host; no fuerza SSL en clientes que sigan con
+    # sslmode=disable (billing/attention/media siguen igual). Cert/key
+    # generados una sola vez en el volumen pg_certs, ver instrucciones
+    # de despliegue — nunca se commitean.
+    command: ["postgres", "-c", "ssl=on", "-c", "ssl_cert_file=/certs/server.crt", "-c", "ssl_key_file=/certs/server.key"]
     volumes:
       - postgres_synthetic_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - pg_certs:/certs:ro
     networks: [zu-network]
     restart: unless-stopped
     healthcheck:
@@ -197,7 +206,14 @@ services:
     container_name: zu-core
     ports:
       - "127.0.0.1:4001:4001"
-    env_file: ./services/core/.env.dev
+    env_file:
+      - ./services/core/.env.dev
+      # Secretos reales de staging (DB_PASSWORD, REDIS_PASSWORD,
+      # RABBITMQ_URL, VAULT_TOKEN) — NUNCA committeado, ver instrucciones
+      # de despliegue. "required: false" para no romper otros checkouts
+      # (dev local, CI) que no tienen ni necesitan este archivo.
+      - path: ./services/core/.env
+        required: false
     environment:
       # Fase de pruebas técnicas con SST reales vía Google, previa al
       # lanzamiento público (sprint "piloto con profesionales reales",
@@ -207,7 +223,7 @@ services:
       # (IA, biometría, exámenes médicos, drones) siguen bloqueados por
       # sus propios flags, independientes de este cambio.
       ENV: staging
-      AUTO_MIGRATE: "true"
+      AUTO_MIGRATE: "false"
       PILOT_SYNTHETIC_ENABLED: "false"
       GOOGLE_SIGNUP_ENABLED: "true"
       GOOGLE_CLIENT_ID: "1001223272587-0to05689t2m98rdtepul9fjiuv339ovo.apps.googleusercontent.com"
@@ -215,8 +231,11 @@ services:
       GOOGLE_SIGNUP_PRIVACY_URL: "https://www.zuseguridad360.com/legal/privacidad"
       GOOGLE_SIGNUP_TERMS_VERSION: "1.0-piloto"
       GOOGLE_SIGNUP_PRIVACY_VERSION: "1.0-piloto"
+      ALLOWED_ORIGINS: "https://www.zuseguridad360.com"
       DB_HOST: postgres
-      DB_NAME: zu_core_synthetic
+      DB_USER: zu_core_staging
+      DB_NAME: zu_core
+      DB_SSLMODE: require
     depends_on:
       postgres:
         condition: service_healthy

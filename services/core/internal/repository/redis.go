@@ -9,8 +9,14 @@ import (
 )
 
 func NewRedisClient(cfg *config.Config) *redis.Client {
+	// Username vacío (default en dev) autentica contra el usuario "default"
+	// de Redis, igual que antes — no rompe nada existente. Con un usuario
+	// ACL dedicado (RedisUsername configurado), Core puede tener su propia
+	// credencial sin rotar el requirepass compartido que usan los demás
+	// servicios (billing/attention/media), evitando romperlos.
 	client := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
+		Username: cfg.RedisUsername,
 		Password: cfg.RedisPassword,
 		DB:       0,
 	})
