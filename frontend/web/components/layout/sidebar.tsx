@@ -3,10 +3,13 @@ import Link from "next/link";
 import { ZULogo } from "@/components/brand/logo";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { LayoutDashboard, Building2, Users, GraduationCap, Stethoscope, ShieldAlert, AlertTriangle, FileText, Cpu, Plane, Inbox, Bot, DollarSign, Settings, ChevronRight, Layers, Network, RefreshCw, HardHat, ClipboardCheck, Gavel, BarChart3, Scale } from "lucide-react";
+import { LayoutDashboard, Building2, Users, GraduationCap, Stethoscope, ShieldAlert, AlertTriangle, FileText, Cpu, Plane, Inbox, Bot, DollarSign, Settings, ChevronRight, Layers, Network, RefreshCw, HardHat, ClipboardCheck, Gavel, BarChart3, Scale, Briefcase } from "lucide-react";
 
 const NAV_GROUPS = [
-  { label: null, items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
+  { label: null, items: [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/portfolio", label: "Portafolio", icon: Briefcase },
+  ] },
   { label: "GESTIÓN", items: [
     { href: "/dashboard/companies", label: "Empresas", icon: Building2 },
     { href: "/dashboard/employees", label: "Empleados", icon: Users },

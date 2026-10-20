@@ -438,6 +438,20 @@ export const alertAPI = {
   list: (companyId: string) => api.get<{ data: AlertAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/alerts`),
 };
 
+export interface PortfolioCompanyRecord {
+  company_id: string;
+  name: string;
+  is_synthetic: boolean;
+  active_employees: number;
+  open_incidents: number;
+  critical_risks: number;
+  pending_legal_requirements: number;
+}
+
+export const portfolioAPI = {
+  summary: () => api.get<{ data: PortfolioCompanyRecord[] }>(`/api/core/portfolio`),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),

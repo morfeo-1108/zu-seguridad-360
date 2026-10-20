@@ -79,6 +79,7 @@ func main() {
 	indicatorSvc := service.NewIndicatorService(incidentRepo, employeeRepo)
 	legalSvc := service.NewLegalRequirementService(db)
 	alertSvc := service.NewAlertService(medicalSvc, eppSvc, riskSvc, legalSvc)
+	portfolioSvc := service.NewPortfolioService(db, companyRepo)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -97,6 +98,7 @@ func main() {
 	indicatorH := handler.NewIndicatorHandler(indicatorSvc)
 	legalH := handler.NewLegalRequirementHandler(legalSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
+	portfolioH := handler.NewPortfolioHandler(portfolioSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -152,6 +154,11 @@ func main() {
 	coByID.Delete("/", companyH.Delete)
 	coByID.Get("/score", companyH.GetRiskScore)
 	coByID.Post("/ocr-rut", middleware.SensitiveDataProcessingDisabled(), companyH.ProcessRUT)
+
+	// Portfolio: cross-company aggregate for a professional's whole tenant,
+	// deliberately NOT company-scoped — it spans every company the caller
+	// has membership to, each still filtered server-side by tenant_id.
+	app.Get("/v1/portfolio", jwt, middleware.Authorize(enforcer, "companies"), portfolioH.Summary)
 
 	// Employees
 	emp := app.Group("/v1/companies/:companyId/employees", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "employees"), middleware.SensitiveDataProcessingGate(cfg.SyntheticPilotEnabled))
