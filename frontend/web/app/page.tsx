@@ -93,6 +93,7 @@ export default function HomePage() {
           onLoadedData={() => setVideoReady(true)}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
         >
+          <source src="/videos/hero.webm" type="video/webm" />
           <source src="/videos/hero.mp4" type="video/mp4" />
         </video>
         <img
