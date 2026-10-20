@@ -12,6 +12,7 @@ volumes:
   vault_data:
   minio_data:
   pg_certs:
+  redis_acl:
 
 services:
   # ─── BASES DE DATOS ──────────────────────────────────────
@@ -46,10 +47,19 @@ services:
   redis:
     image: redis:7-alpine
     container_name: zu-redis
-    command: redis-server --requirepass zuredis123 --maxmemory 512mb --maxmemory-policy allkeys-lru
+    # aclfile en vez de --requirepass — un usuario creado con "ACL SETUSER"
+    # por redis-cli vive solo en memoria y se pierde en el próximo
+    # restart/reinicio del host (confirmado antes de aplicarlo: Redis no
+    # tiene dónde persistirlo sin un aclfile configurado). El archivo
+    # (users.acl, en el volumen redis_acl) lo puebla un paso de setup
+    # único — ver instrucciones de despliegue — con la MISMA contraseña
+    # de "default" que ya usan billing/attention/media, más el usuario
+    # dedicado de Core. Nunca se commitea (vive solo en el volumen).
+    command: redis-server --aclfile /etc/redis/users.acl --maxmemory 512mb --maxmemory-policy allkeys-lru
     ports:
       - "127.0.0.1:56379:6379"
     volumes:
+      - redis_acl:/etc/redis
       - redis_data:/data
     networks: [zu-network]
     restart: unless-stopped
