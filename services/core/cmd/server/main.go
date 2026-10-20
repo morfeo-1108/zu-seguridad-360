@@ -74,6 +74,7 @@ func main() {
 	medicalSvc := service.NewMedicalExamService(db, amqp, cfg.SyntheticPilotEnabled)
 	evidenceSvc := service.NewEvidenceService(db)
 	eppSvc := service.NewEPPService(db)
+	inspectionSvc := service.NewInspectionService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -87,6 +88,7 @@ func main() {
 	evidenceH := handler.NewEvidenceHandler(evidenceSvc)
 	riskH := handler.NewRiskHandler(riskSvc)
 	eppH := handler.NewEPPHandler(eppSvc)
+	inspectionH := handler.NewInspectionHandler(inspectionSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -200,6 +202,13 @@ func main() {
 	epp.Get("/deliveries/expiring", eppH.ListExpiring)
 	epp.Get("/deliveries/employee/:employeeId", eppH.ListByEmployee)
 	epp.Put("/deliveries/:id/return", eppH.Return)
+
+	// Inspecciones con checklist y plan de acción autogenerado desde hallazgos
+	insp := app.Group("/v1/companies/:companyId/inspections", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "inspections"))
+	insp.Get("/", inspectionH.List)
+	insp.Post("/", inspectionH.Create)
+	insp.Get("/:id", inspectionH.GetByID)
+	insp.Put("/:id/approve", inspectionH.Approve)
 
 	// Matriz de riesgos GTC-45 / IPEVR
 	risk := app.Group("/v1/companies/:companyId/risks", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "risks"))

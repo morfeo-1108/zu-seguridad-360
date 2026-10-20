@@ -72,6 +72,7 @@ func RunAllMigrations(db *gorm.DB) error {
 		&model.RiskEntry{},
 		&model.EPPItem{},
 		&model.EPPDelivery{},
+		&model.Inspection{},
 		&model.ConsentRecord{},
 		&model.Project{},
 		&model.Zone{},
