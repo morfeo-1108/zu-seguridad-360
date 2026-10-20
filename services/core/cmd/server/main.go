@@ -84,8 +84,8 @@ func main() {
 	mgmtH := handler.NewManagementHandler(mgmtSvc, watchSvc)
 	medicalH := handler.NewMedicalHandler(medicalSvc)
 	evidenceH := handler.NewEvidenceHandler(evidenceSvc)
+	riskH := handler.NewRiskHandler(riskSvc)
 	metaH := handler.NewSystemMetaHandler()
-	_ = riskSvc // handler en siguiente iteración
 
 	// ── Fiber App ───────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -189,6 +189,12 @@ func main() {
 	ev.Get("/employees/:employeeId", evidenceH.EmployeeTimeline)
 	ev.Get("/employees/:employeeId/compliance-proof", evidenceH.ComplianceProof)
 	ev.Get("/projects/:projectId", evidenceH.ProjectEvidence)
+
+	// Matriz de riesgos GTC-45 / IPEVR
+	risk := app.Group("/v1/companies/:companyId/risks", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "risks"))
+	risk.Get("/", riskH.List)
+	risk.Post("/", riskH.Create)
+	risk.Get("/heatmap", riskH.HeatMap)
 
 	// ── Sistema de Gestión PHVA + cumplimiento ISO/Res.0312 ──
 	// Every systemId/standardId lookup below is scoped to the token's active
