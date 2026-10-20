@@ -335,6 +335,34 @@ export const eppAPI = {
     api.put<EPPDeliveryAPIRecord>(`/api/core/companies/${companyId}/epp/deliveries/${deliveryId}/return`, { reason }),
 };
 
+export interface ChecklistItem { code: string; description: string; compliant: boolean; notes?: string }
+export interface ActionPlanItem { item_code: string; description: string; responsible: string; due_date: string | null; status: string }
+
+export interface InspectionAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  title: string;
+  area: string;
+  inspector_id: string;
+  performed_at: string;
+  checklist: ChecklistItem[];
+  compliance_pct: number;
+  status: "completada" | "aprobada";
+  approved_by: string | null;
+  approved_at: string | null;
+  action_plan: ActionPlanItem[];
+  created_at: string;
+}
+
+export const inspectionAPI = {
+  list: (companyId: string) => api.get<{ data: InspectionAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/inspections`),
+  get: (companyId: string, id: string) => api.get<InspectionAPIRecord>(`/api/core/companies/${companyId}/inspections/${id}`),
+  create: (companyId: string, data: { title: string; area: string; performed_at: string; checklist: ChecklistItem[] }) =>
+    api.post<InspectionAPIRecord>(`/api/core/companies/${companyId}/inspections`, data),
+  approve: (companyId: string, id: string) => api.put<InspectionAPIRecord>(`/api/core/companies/${companyId}/inspections/${id}/approve`, {}),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),

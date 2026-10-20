@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { companyAPI, employeeAPI, eppAPI, incidentAPI, riskAPI, trainingAPI, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, riskAPI, trainingAPI, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -49,3 +49,8 @@ export function useEPPExpiring(companyId: string) {
 }
 
 export type EPPItem = EPPItemAPIRecord;
+export type Inspection = InspectionAPIRecord;
+
+export function useCompanyInspections(companyId: string) {
+  return useQuery({ queryKey: ["inspections", companyId], queryFn: async () => (await inspectionAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
