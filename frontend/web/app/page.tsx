@@ -7,6 +7,7 @@ import {
   Lock, Boxes, ArrowRight, Sparkles, ScrollText, RadioTower, Fingerprint,
 } from "lucide-react";
 import { ZULogo } from "@/components/brand/logo";
+import { Reveal, spotlightHandler } from "@/components/landing/reveal";
 import { useAuthStore } from "@/lib/store";
 
 const CAPABILITIES = [
@@ -73,7 +74,7 @@ export default function HomePage() {
             <a href="#piloto" className="hover:text-white transition">En piloto</a>
             <Link href="/planes" className="hover:text-white transition">Planes</Link>
           </nav>
-          <Link href="/auth/login" className="rounded-full bg-white px-5 py-2 text-[13px] font-semibold text-[#0B0F0C] transition hover:bg-zu-lime">
+          <Link href="/auth/login" className="rounded-lg border border-white/15 bg-white/5 px-5 py-2.5 text-[13px] font-bold text-white backdrop-blur-sm transition hover:border-zu-lime hover:bg-zu-lime hover:text-[#0B0F0C]">
             Iniciar sesión
           </Link>
         </div>
@@ -149,33 +150,40 @@ export default function HomePage() {
       </section>
 
       {/* ── Capacidades ── */}
-      <section id="capacidades" className="relative border-t border-white/[0.06] bg-[#0B0F0C] py-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          <div className="mb-14 max-w-2xl">
+      <section id="capacidades" className="relative overflow-hidden border-t border-white/[0.06] bg-[#0B0F0C] py-24">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+        <div className="pointer-events-none absolute -left-32 top-10 h-[420px] w-[420px] animate-float-slow rounded-full bg-zu-lime/10 blur-[110px]" />
+        <div className="pointer-events-none absolute -right-24 bottom-0 h-[360px] w-[360px] animate-float-slower rounded-full bg-emerald-500/10 blur-[110px]" />
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
+          <Reveal className="mb-14 max-w-2xl">
             <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">La plataforma</div>
             <h2 className="text-[32px] font-extrabold tracking-tight sm:text-[40px]">Construida sobre el rigor que exige la ley, no sobre una lista de funciones.</h2>
             <p className="mt-3 text-[15px] text-white/55">
               Cada módulo nace de un requisito normativo real del sistema de gestión de SST en Colombia — pensado para el día a día de quien administra varias empresas a la vez.
             </p>
-          </div>
+          </Reveal>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {CAPABILITIES.map((c) => (
-              <div key={c.title} className="group rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition hover:border-zu-lime/30 hover:bg-white/[0.04]">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zu-lime/10 text-zu-lime transition group-hover:bg-zu-lime group-hover:text-[#0B0F0C]">
-                  <c.icon size={20} />
+            {CAPABILITIES.map((c, i) => (
+              <Reveal key={c.title} delay={(i % 4) * 80}>
+                <div onMouseMove={spotlightHandler} className="spotlight-card group h-full rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-white/[0.14] hover:bg-white/[0.04] hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.5)]">
+                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zu-lime/10 text-zu-lime transition group-hover:bg-zu-lime group-hover:text-[#0B0F0C]">
+                    <c.icon size={20} />
+                  </div>
+                  <h3 className="mb-2 text-[15px] font-bold text-white">{c.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-white/50">{c.desc}</p>
                 </div>
-                <h3 className="mb-2 text-[15px] font-bold text-white">{c.title}</h3>
-                <p className="text-[13px] leading-relaxed text-white/50">{c.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       {/* ── Hoja de ruta ── */}
-      <section id="piloto" className="relative border-t border-white/[0.06] bg-[#0D1210] py-24">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          <div className="mb-14 flex flex-wrap items-end justify-between gap-6">
+      <section id="piloto" className="relative overflow-hidden border-t border-white/[0.06] bg-[#0D1210] py-24">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+        <div className="pointer-events-none absolute left-1/3 top-0 h-[380px] w-[380px] animate-float-slower rounded-full bg-amber-400/10 blur-[120px]" />
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
+          <Reveal className="mb-14 flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-xl">
               <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-amber-400">En desarrollo</div>
               <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">La siguiente frontera: inteligencia artificial aplicada a la prevención.</h2>
@@ -186,24 +194,27 @@ export default function HomePage() {
               </p>
             </div>
             <Boxes size={48} className="shrink-0 text-white/15" />
-          </div>
+          </Reveal>
           <div className="grid gap-5 sm:grid-cols-3">
-            {ROADMAP_MODULES.map((m) => (
-              <div key={m.title} className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-6">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-                  <m.icon size={20} />
+            {ROADMAP_MODULES.map((m, i) => (
+              <Reveal key={m.title} delay={i * 90}>
+                <div onMouseMove={spotlightHandler} className="spotlight-card amber h-full rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-6 transition-all duration-300 hover:-translate-y-1">
+                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+                    <m.icon size={20} />
+                  </div>
+                  <h3 className="mb-2 text-[15px] font-bold text-white">{m.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-white/50">{m.desc}</p>
                 </div>
-                <h3 className="mb-2 text-[15px] font-bold text-white">{m.title}</h3>
-                <p className="text-[13px] leading-relaxed text-white/50">{m.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       {/* ── CTA final ── */}
-      <section className="relative border-t border-white/[0.06] bg-[#0B0F0C] py-24">
-        <div className="mx-auto max-w-4xl px-6 text-center lg:px-10">
+      <section className="relative overflow-hidden border-t border-white/[0.06] bg-[#0B0F0C] py-24">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-zu-lime/[0.06] blur-[140px]" />
+        <Reveal className="relative mx-auto max-w-4xl px-6 text-center lg:px-10">
           <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[38px]">
             Lleva la gestión de tu cartera a otro nivel.
           </h2>
@@ -212,12 +223,12 @@ export default function HomePage() {
           </p>
           <Link
             href="/auth/login"
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-zu-lime px-8 py-4 text-[15px] font-bold text-[#0B0F0C] transition hover:bg-white"
+            className="group mt-8 inline-flex items-center gap-2 rounded-full bg-zu-lime px-8 py-4 text-[15px] font-bold text-[#0B0F0C] shadow-[0_8px_30px_rgba(139,195,74,0.25)] transition hover:bg-white hover:shadow-[0_8px_40px_rgba(139,195,74,0.4)]"
           >
             Ingresar a ZU 360
-            <ArrowRight size={17} />
+            <ArrowRight size={17} className="transition group-hover:translate-x-1" />
           </Link>
-        </div>
+        </Reveal>
       </section>
 
       <footer className="border-t border-white/[0.06] bg-[#0B0F0C] px-6 py-8 text-center text-[12px] text-white/35 lg:px-10">
