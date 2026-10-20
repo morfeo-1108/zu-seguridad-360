@@ -18,6 +18,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.LoadVaultSecrets(); err != nil {
+		log.Fatalf("vault secret loading failed: %v", err)
+	}
 	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("DB error: %v", err)

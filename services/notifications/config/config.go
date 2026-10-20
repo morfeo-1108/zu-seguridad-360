@@ -10,6 +10,11 @@ type Config struct {
 	WhatsAppToken         string
 	WhatsAppPhoneNumberID string
 	PushAPIKey            string
+
+	VaultEnabled bool
+	VaultAddr    string
+	VaultToken   string
+	VaultPath    string
 }
 
 func Load() *Config {
@@ -21,6 +26,11 @@ func Load() *Config {
 		WhatsAppToken:         getEnv("WHATSAPP_TOKEN", ""),
 		WhatsAppPhoneNumberID: getEnv("WHATSAPP_PHONE_NUMBER_ID", ""),
 		PushAPIKey:            getEnv("PUSH_API_KEY", ""),
+
+		VaultEnabled: getEnv("VAULT_ENABLED", "false") == "true",
+		VaultAddr:    getEnv("VAULT_ADDR", "http://localhost:8200"),
+		VaultToken:   getEnv("VAULT_TOKEN", "zu-vault-dev-token"),
+		VaultPath:    getEnv("VAULT_SECRET_PATH", "secret/data/zu360/notifications"),
 	}
 }
 

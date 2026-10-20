@@ -7,6 +7,11 @@ type Config struct {
 	DatabaseURL string
 	RabbitMQURL string
 	RedisAddr   string
+
+	VaultEnabled bool
+	VaultAddr    string
+	VaultToken   string
+	VaultPath    string
 }
 
 func Load() *Config {
@@ -15,6 +20,11 @@ func Load() *Config {
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://zuadmin:zupassword@postgres:5432/zu_core"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://zurabbit:zurabbit123@rabbitmq:5672/zu_vhost"),
 		RedisAddr:   getEnv("REDIS_ADDR", "redis:6379"),
+
+		VaultEnabled: getEnv("VAULT_ENABLED", "false") == "true",
+		VaultAddr:    getEnv("VAULT_ADDR", "http://localhost:8200"),
+		VaultToken:   getEnv("VAULT_TOKEN", "zu-vault-dev-token"),
+		VaultPath:    getEnv("VAULT_SECRET_PATH", "secret/data/zu360/sla"),
 	}
 }
 

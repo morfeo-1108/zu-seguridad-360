@@ -14,6 +14,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.LoadVaultSecrets(); err != nil {
+		log.Fatalf("vault secret loading failed: %v", err)
+	}
 	uploadH := handler.NewUploadHandler(cfg.S3Bucket, cfg.AWSRegion)
 
 	app := fiber.New(fiber.Config{AppName: "ZU Media v6.0", BodyLimit: 50 * 1024 * 1024})

@@ -4,6 +4,11 @@ import "os"
 
 type Config struct {
 	Port, RabbitMQURL, SMTPHost, SMTPPort, SMTPUser, SMTPPass, FromEmail, FromName, SendGridKey string
+
+	VaultEnabled bool
+	VaultAddr    string
+	VaultToken   string
+	VaultPath    string
 }
 
 func Load() *Config {
@@ -17,6 +22,11 @@ func Load() *Config {
 		FromEmail:   env("FROM_EMAIL", "noreply@zu360.co"),
 		FromName:    env("FROM_NAME", "ZU Seguridad 360"),
 		SendGridKey: env("SENDGRID_API_KEY", ""),
+
+		VaultEnabled: env("VAULT_ENABLED", "false") == "true",
+		VaultAddr:    env("VAULT_ADDR", "http://localhost:8200"),
+		VaultToken:   env("VAULT_TOKEN", "zu-vault-dev-token"),
+		VaultPath:    env("VAULT_SECRET_PATH", "secret/data/zu360/mail"),
 	}
 }
 func env(k, d string) string {

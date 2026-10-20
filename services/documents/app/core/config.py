@@ -1,6 +1,10 @@
 from pydantic_settings import BaseSettings
 from typing import List
 
+from app.core.vault import load_vault_secrets
+
+load_vault_secrets()  # must run before Settings() reads os.environ below
+
 
 class Settings(BaseSettings):
     PORT: int = 4003

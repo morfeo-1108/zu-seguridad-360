@@ -5,6 +5,11 @@ import "os"
 type Config struct {
 	Port, DatabaseURL, RabbitMQURL, WompiURL, WompiKey, WompiEventsSecret, JWTSecret string
 	AutoMigrate                                                                      bool
+
+	VaultEnabled bool
+	VaultAddr    string
+	VaultToken   string
+	VaultPath    string
 }
 
 func Load() *Config {
@@ -17,6 +22,11 @@ func Load() *Config {
 		WompiEventsSecret: env("WOMPI_EVENTS_SECRET", ""),
 		JWTSecret:         env("JWT_SECRET", "zu-super-secret-key-change-in-prod"),
 		AutoMigrate:       env("AUTO_MIGRATE", "false") == "true",
+
+		VaultEnabled: env("VAULT_ENABLED", "false") == "true",
+		VaultAddr:    env("VAULT_ADDR", "http://localhost:8200"),
+		VaultToken:   env("VAULT_TOKEN", "zu-vault-dev-token"),
+		VaultPath:    env("VAULT_SECRET_PATH", "secret/data/zu360/billing"),
 	}
 }
 func env(k, d string) string {
