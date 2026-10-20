@@ -21,32 +21,42 @@ const (
 	InvoiceStatusOverdue InvoiceStatus = "overdue"
 	InvoiceStatusVoided  InvoiceStatus = "voided"
 
-	PlanBasico   PlanCode = "basico"
-	PlanEstandar PlanCode = "estandar"
-	PlanPremium  PlanCode = "premium"
-	PlanDronAdd  PlanCode = "dron_addon"
+	PlanEsencial    PlanCode = "esencial"
+	PlanProfesional PlanCode = "profesional"
+	PlanConsultora  PlanCode = "consultora"
+	PlanAgencia     PlanCode = "agencia"
 )
 
-// Subscription is one per professional/tenant, not per company: the plan sells
-// a quota of companies a professional may manage (basico=10, estandar=20,
-// premium=50; dron_addon does not carry its own company quota).
+// Subscription is one per professional/tenant, not per company: the plan
+// sells a quota of companies, professional users, and workers managed —
+// see service.Plans for the current commercial definition of each tier.
+// MaxCompanies is actively enforced (BillingService.CanAddCompany, called
+// by Core before creating a company). MaxProfessionalUsers and MaxWorkers
+// are stored and shown to the customer but NOT enforced yet: Core has no
+// "invite a second professional user under the same tenant" flow, and no
+// per-tenant worker-count cap — both would be new Core features, not just
+// a billing check.
 type Subscription struct {
-	ID                 uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	TenantID           uuid.UUID          `gorm:"type:uuid;not null;uniqueIndex" json:"tenant_id"`
-	PlanCode           PlanCode           `gorm:"size:30;not null" json:"plan_code"`
-	PriceMonthly       int64              `gorm:"not null" json:"price_monthly"` // COP en centavos
-	MaxCompanies       int                `gorm:"not null" json:"max_companies"` // cupo vigente al momento de suscribirse
-	Status             SubscriptionStatus `gorm:"size:20;default:'active'" json:"status"`
-	WompiTokenID       string             `gorm:"size:255" json:"wompi_token_id"` // tokenización tarjeta
-	BillingDay         int                `gorm:"default:1" json:"billing_day"`
-	TrialEndsAt        *time.Time         `json:"trial_ends_at"`
-	CurrentPeriodStart time.Time          `json:"current_period_start"`
-	CurrentPeriodEnd   time.Time          `json:"current_period_end"`
-	CancelledAt        *time.Time         `json:"cancelled_at"`
-	SuspendedAt        *time.Time         `json:"suspended_at"`
-	GraceDays          int                `gorm:"default:3" json:"grace_days"`
-	CreatedAt          time.Time          `json:"created_at"`
-	UpdatedAt          time.Time          `json:"updated_at"`
+	ID                   uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	TenantID             uuid.UUID          `gorm:"type:uuid;not null;uniqueIndex" json:"tenant_id"`
+	PlanCode             PlanCode           `gorm:"size:30;not null" json:"plan_code"`
+	PriceMonthly         int64              `gorm:"not null" json:"price_monthly"` // COP en centavos; precio vigente (normal o fundador) al momento de facturar
+	MaxCompanies         int                `gorm:"not null" json:"max_companies"`
+	MaxProfessionalUsers int                `gorm:"not null;default:1" json:"max_professional_users"`
+	MaxWorkers           int                `gorm:"not null;default:0" json:"max_workers"`
+	IsFounder            bool               `gorm:"default:false" json:"is_founder"`
+	FounderPriceUntil    *time.Time         `json:"founder_price_until"` // tras esta fecha, la próxima factura debe recalcularse al precio normal del plan
+	Status               SubscriptionStatus `gorm:"size:20;default:'active'" json:"status"`
+	WompiTokenID         string             `gorm:"size:255" json:"wompi_token_id"` // tokenización tarjeta
+	BillingDay           int                `gorm:"default:1" json:"billing_day"`
+	TrialEndsAt          *time.Time         `json:"trial_ends_at"`
+	CurrentPeriodStart   time.Time          `json:"current_period_start"`
+	CurrentPeriodEnd     time.Time          `json:"current_period_end"`
+	CancelledAt          *time.Time         `json:"cancelled_at"`
+	SuspendedAt          *time.Time         `json:"suspended_at"`
+	GraceDays            int                `gorm:"default:3" json:"grace_days"`
+	CreatedAt            time.Time          `json:"created_at"`
+	UpdatedAt            time.Time          `json:"updated_at"`
 }
 
 // Invoice bills the professional/tenant (ZU360's actual customer), not an

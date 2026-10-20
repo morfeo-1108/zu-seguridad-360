@@ -43,11 +43,11 @@ func main() {
 	}
 
 	// Payment collection (Wompi), cron invoicing, and the outbox relay remain
-	// disabled pending a sandbox payment flow with dedicated tests. The
-	// company-quota check below is read-only (it creates/mutates nothing) and
-	// is required by Core's company creation flow per the per-professional
-	// plan-quota model (basico=10, estandar=20, premium=50 companies), so it
-	// is enabled with real JWT + tenant-scope enforcement.
+	// disabled pending a sandbox payment flow with dedicated tests. Company
+	// quota, plan listing, and subscription read/create are read/metadata
+	// operations that never touch Wompi (CreateSubscription records the
+	// plan selection only — "autogestión", no charge attempted) and are
+	// enabled with real JWT + tenant-scope enforcement.
 	app := fiber.New(fiber.Config{AppName: "ZU Billing"})
 	app.Use(recover.New())
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -58,7 +58,10 @@ func main() {
 	billingSvc := service.NewBillingService(db, wompiClient)
 	billingH := handler.NewBillingHandler(billingSvc, cfg.WompiEventsSecret)
 	jwt := middleware.JWTProtected(cfg)
+	app.Get("/v1/plans", billingH.ListPlans)
 	app.Get("/v1/tenants/:tenantId/can-add-company", jwt, middleware.TenantScope("tenantId"), billingH.CanAddCompany)
+	app.Get("/v1/tenants/:tenantId/subscription", jwt, middleware.TenantScope("tenantId"), billingH.GetSubscription)
+	app.Post("/v1/tenants/:tenantId/subscription", jwt, middleware.TenantScope("tenantId"), billingH.CreateSubscription)
 	// No JWT: Wompi itself calls this, authenticated only by its own event
 	// signature (verified inside the handler).
 	app.Post("/v1/webhooks/wompi", billingH.WompiWebhook)

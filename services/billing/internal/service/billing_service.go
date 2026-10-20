@@ -12,20 +12,29 @@ import (
 	"time"
 )
 
-// PlanInfo is the commercial definition of a plan: price and how many client
-// companies a professional may manage under it. dron_addon is not a
-// standalone plan (it carries no company quota of its own) — it is meant to
-// be combined with a base plan; CreateSubscription rejects it alone.
+// PlanInfo is the commercial definition of a plan: price in COP centavos
+// and the quotas it sells. FounderPriceMonthly is the discounted price
+// offered to the first professionals who join during the pilot (locked in
+// for 12 months from signup — see CreateSubscription).
 type PlanInfo struct {
-	PriceMonthly int64 // COP en centavos
-	MaxCompanies int
+	PriceMonthly         int64 // COP en centavos — precio normal
+	FounderPriceMonthly  int64 // COP en centavos — precio fundador, primeros 15-20 profesionales, 12 meses
+	MaxCompanies         int
+	MaxProfessionalUsers int
+	MaxWorkers           int
 }
 
 var Plans = map[model.PlanCode]PlanInfo{
-	model.PlanBasico:   {PriceMonthly: 100000000, MaxCompanies: 10}, // $1,000,000 COP
-	model.PlanEstandar: {PriceMonthly: 150000000, MaxCompanies: 20}, // $1,500,000 COP
-	model.PlanPremium:  {PriceMonthly: 215000000, MaxCompanies: 50}, // $2,150,000 COP
+	model.PlanEsencial:    {PriceMonthly: 12900000, FounderPriceMonthly: 9900000, MaxCompanies: 3, MaxProfessionalUsers: 1, MaxWorkers: 100},
+	model.PlanProfesional: {PriceMonthly: 29900000, FounderPriceMonthly: 21900000, MaxCompanies: 10, MaxProfessionalUsers: 3, MaxWorkers: 350},
+	model.PlanConsultora:  {PriceMonthly: 59900000, FounderPriceMonthly: 39900000, MaxCompanies: 25, MaxProfessionalUsers: 8, MaxWorkers: 1000},
+	model.PlanAgencia:     {PriceMonthly: 99900000, FounderPriceMonthly: 69900000, MaxCompanies: 60, MaxProfessionalUsers: 20, MaxWorkers: 3000},
 }
+
+// FounderSlotsRemaining caps how many tenants may ever get IsFounder=true.
+// Hardcoded, not configurable at runtime: raising this is a pricing
+// decision, not an operational one.
+const FounderSlotsTotal = 20
 
 const IVARate = 0.19
 
@@ -82,8 +91,11 @@ func (s *BillingService) ChargeInvoice(ctx context.Context, invoiceID uuid.UUID,
 
 // CreateSubscription provisions one subscription per tenant/professional. A
 // tenant with an existing subscription must cancel/upgrade instead of
-// creating a second one (TenantID is unique).
-func (s *BillingService) CreateSubscription(ctx context.Context, tenantID uuid.UUID, planCode model.PlanCode, wompiToken string) (*model.Subscription, error) {
+// creating a second one (TenantID is unique). wantsFounder is a request,
+// not a guarantee — it's silently downgraded to the normal price once
+// FounderSlotsTotal is reached, so the caller must read IsFounder back off
+// the returned subscription rather than assuming it got what it asked for.
+func (s *BillingService) CreateSubscription(ctx context.Context, tenantID uuid.UUID, planCode model.PlanCode, wompiToken string, wantsFounder bool) (*model.Subscription, error) {
 	plan, ok := Plans[planCode]
 	if !ok {
 		return nil, fmt.Errorf("plan %s no existe o no es un plan base con cupo de empresas", planCode)
@@ -93,23 +105,34 @@ func (s *BillingService) CreateSubscription(ctx context.Context, tenantID uuid.U
 	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	periodEnd := periodStart.AddDate(0, 1, -1)
 
+	price := plan.PriceMonthly
+	isFounder := false
+	var founderUntil *time.Time
+	if wantsFounder {
+		var founderCount int64
+		if err := s.db.WithContext(ctx).Model(&model.Subscription{}).Where("is_founder = ?", true).Count(&founderCount).Error; err != nil {
+			return nil, err
+		}
+		if founderCount < FounderSlotsTotal {
+			price = plan.FounderPriceMonthly
+			isFounder = true
+			until := now.AddDate(1, 0, 0)
+			founderUntil = &until
+		}
+	}
+
 	sub := &model.Subscription{
-		TenantID:           tenantID,
-		PlanCode:           planCode,
-		PriceMonthly:       plan.PriceMonthly,
-		MaxCompanies:       plan.MaxCompanies,
-		Status:             model.SubStatusActive,
-		WompiTokenID:       wompiToken,
-		BillingDay:         1,
-		CurrentPeriodStart: periodStart,
-		CurrentPeriodEnd:   periodEnd,
-		GraceDays:          3,
+		TenantID: tenantID, PlanCode: planCode, PriceMonthly: price,
+		MaxCompanies: plan.MaxCompanies, MaxProfessionalUsers: plan.MaxProfessionalUsers, MaxWorkers: plan.MaxWorkers,
+		IsFounder: isFounder, FounderPriceUntil: founderUntil,
+		Status: model.SubStatusActive, WompiTokenID: wompiToken, BillingDay: 1,
+		CurrentPeriodStart: periodStart, CurrentPeriodEnd: periodEnd, GraceDays: 3,
 	}
 
 	if err := s.db.WithContext(ctx).Create(sub).Error; err != nil {
 		return nil, err
 	}
-	log.Printf("✅ Suscripción creada: tenant %s, plan %s, %d empresas, $%.0f/mes", tenantID, planCode, plan.MaxCompanies, float64(plan.PriceMonthly)/100)
+	log.Printf("✅ Suscripción creada: tenant %s, plan %s, founder=%v, %d empresas, $%.0f/mes", tenantID, planCode, isFounder, plan.MaxCompanies, float64(price)/100)
 	return sub, nil
 }
 
@@ -137,6 +160,15 @@ func (s *BillingService) CanAddCompany(ctx context.Context, tenantID uuid.UUID) 
 	return int(count) < sub.MaxCompanies, int(count), sub.MaxCompanies, nil
 }
 
+// GetSubscription returns tenantID's active subscription, if any.
+func (s *BillingService) GetSubscription(ctx context.Context, tenantID uuid.UUID) (*model.Subscription, error) {
+	var sub model.Subscription
+	if err := s.db.WithContext(ctx).Where("tenant_id = ? AND status = ?", tenantID, model.SubStatusActive).First(&sub).Error; err != nil {
+		return nil, err
+	}
+	return &sub, nil
+}
+
 func (s *BillingService) GenerateMonthlyInvoices(ctx context.Context) (int, error) {
 	var subs []model.Subscription
 	if err := s.db.WithContext(ctx).Where("status = 'active' AND billing_day = ?", time.Now().Day()).Find(&subs).Error; err != nil {
@@ -155,6 +187,13 @@ func (s *BillingService) GenerateMonthlyInvoices(ctx context.Context) (int, erro
 }
 
 func (s *BillingService) generateInvoice(ctx context.Context, sub model.Subscription) (*model.Invoice, error) {
+	if sub.IsFounder && sub.FounderPriceUntil != nil && time.Now().After(*sub.FounderPriceUntil) {
+		// The 12-month founder window closed; nothing recalculates
+		// price_monthly back to the plan's normal rate automatically today
+		// — flagging it loudly so a human repriced this subscription
+		// instead of silently keeping the founder discount forever.
+		log.Printf("⚠️  tenant %s: precio fundador venció el %s pero la suscripción sigue facturando a precio fundador — requiere reprecio manual", sub.TenantID, sub.FounderPriceUntil.Format("2006-01-02"))
+	}
 	iva := int64(float64(sub.PriceMonthly) * IVARate)
 	total := sub.PriceMonthly + iva
 

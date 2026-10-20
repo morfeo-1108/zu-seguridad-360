@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/zu-seguridad/billing/internal/model"
 	"github.com/zu-seguridad/billing/internal/service"
 	"github.com/zu-seguridad/billing/internal/wompi"
 )
@@ -73,4 +74,47 @@ func (h *BillingHandler) CanAddCompany(c *fiber.Ctx) error {
 		"current_count": current,
 		"max_companies": max,
 	})
+}
+
+// ListPlans is public pricing information — the 4 commercial tiers and
+// what each includes. No auth required, same as any pricing page.
+func (h *BillingHandler) ListPlans(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{"plans": service.Plans})
+}
+
+// GetSubscription returns the caller's own tenant subscription.
+func (h *BillingHandler) GetSubscription(c *fiber.Ctx) error {
+	tenantID, err := uuid.Parse(c.Params("tenantId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "tenantId inválido")
+	}
+	sub, err := h.svc.GetSubscription(c.Context(), tenantID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "sin suscripción activa")
+	}
+	return c.JSON(sub)
+}
+
+// CreateSubscription registers a plan selection for the tenant. It does NOT
+// attempt a real Wompi charge — payment collection stays disabled pending a
+// sandbox-tested flow (see main.go) — so this is the self-service "pick a
+// plan" step the pricing doc calls "autogestión: incluida", not a billing
+// event yet.
+func (h *BillingHandler) CreateSubscription(c *fiber.Ctx) error {
+	tenantID, err := uuid.Parse(c.Params("tenantId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "tenantId inválido")
+	}
+	var body struct {
+		PlanCode     string `json:"plan_code"`
+		WantsFounder bool   `json:"wants_founder"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "cuerpo inválido")
+	}
+	sub, err := h.svc.CreateSubscription(c.Context(), tenantID, model.PlanCode(body.PlanCode), "", body.WantsFounder)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	return c.Status(fiber.StatusCreated).JSON(sub)
 }

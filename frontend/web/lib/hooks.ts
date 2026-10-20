@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { alertAPI, attentionAPI, checklistTemplateAPI, committeeAPI, companyAPI, documentAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type DocumentAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, attentionAPI, billingAPI, checklistTemplateAPI, committeeAPI, companyAPI, documentAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type DocumentAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PlanInfo, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type SubscriptionAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -125,4 +125,21 @@ export type ZuDocument = DocumentAPIRecord;
 
 export function useDocuments(companyId: string, category?: string) {
   return useQuery({ queryKey: ["documents", companyId, category], queryFn: async () => (await documentAPI.list(companyId, category)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type Plan = PlanInfo;
+export type Subscription = SubscriptionAPIRecord;
+
+export function usePlans() {
+  return useQuery({ queryKey: ["billing-plans"], queryFn: async () => (await billingAPI.listPlans()).data.plans, staleTime: 5 * 60_000, retry: 1 });
+}
+
+export function useSubscription(tenantId: string) {
+  return useQuery({
+    queryKey: ["subscription", tenantId], enabled: !!tenantId, retry: false,
+    queryFn: async () => {
+      try { return (await billingAPI.getSubscription(tenantId)).data; }
+      catch { return null; }
+    },
+  });
 }

@@ -632,3 +632,33 @@ export const documentAPI = {
     api.post<DocumentAPIRecord>(`/api/core/companies/${companyId}/documents`, data),
   remove: (companyId: string, id: string) => api.delete(`/api/core/companies/${companyId}/documents/${id}`),
 };
+
+export interface PlanInfo {
+  PriceMonthly: number;
+  FounderPriceMonthly: number;
+  MaxCompanies: number;
+  MaxProfessionalUsers: number;
+  MaxWorkers: number;
+}
+
+export interface SubscriptionAPIRecord {
+  id: string;
+  tenant_id: string;
+  plan_code: string;
+  price_monthly: number;
+  max_companies: number;
+  max_professional_users: number;
+  max_workers: number;
+  is_founder: boolean;
+  founder_price_until: string | null;
+  status: string;
+  current_period_end: string;
+}
+
+export const billingAPI = {
+  listPlans: () => api.get<{ plans: Record<string, PlanInfo> }>(`/api/billing/plans`),
+  getSubscription: (tenantId: string) => api.get<SubscriptionAPIRecord>(`/api/billing/tenants/${tenantId}/subscription`),
+  canAddCompany: (tenantId: string) => api.get<{ allowed: boolean; current_count: number; max_companies: number }>(`/api/billing/tenants/${tenantId}/can-add-company`),
+  subscribe: (tenantId: string, planCode: string, wantsFounder: boolean) =>
+    api.post<SubscriptionAPIRecord>(`/api/billing/tenants/${tenantId}/subscription`, { plan_code: planCode, wants_founder: wantsFounder }),
+};
