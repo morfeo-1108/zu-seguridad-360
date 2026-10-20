@@ -384,6 +384,25 @@ export const committeeAPI = {
     api.post<CommitteeMeetingAPIRecord>(`/api/core/companies/${companyId}/committees/${committeeId}/meetings`, data),
 };
 
+export interface MonthlyIndicators {
+  period: string;
+  active_employees: number;
+  standard_monthly_hours: number;
+  estimated_hht: number;
+  hht_is_estimated: boolean;
+  work_accidents: number;
+  lost_days: number;
+  frequency_index: number;
+  severity_index: number;
+  formula_note: string;
+  absenteeism_note: string;
+}
+
+export const indicatorAPI = {
+  monthly: (companyId: string, year: number, month: number, standardHours = 220) =>
+    api.get<MonthlyIndicators>(`/api/core/companies/${companyId}/indicators/monthly`, { params: { year, month, standard_hours: standardHours } }),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),
