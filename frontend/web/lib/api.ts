@@ -219,6 +219,7 @@ export interface SyntheticCertificateRecord {
   issued_at: string;
   expires_at: string;
   is_valid: boolean;
+  qr_code: string;
 }
 
 export interface FurATPreview {

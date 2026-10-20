@@ -81,7 +81,7 @@ func TestDataExportServiceBlocksBeforeDatabaseAccess(t *testing.T) {
 func TestTrainingServiceBlocksWorkerDataAndCertificateOperations(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.New()
-	svc := NewTrainingService(nil, nil)
+	svc := NewTrainingService(nil, nil, false, "")
 
 	if training, err := svc.Create(ctx, CreateTrainingInput{}, id, id); training != nil || !errors.Is(err, ErrSensitiveDataProcessingDisabled) {
 		t.Fatalf("Create must fail closed; training=%v err=%v", training, err)

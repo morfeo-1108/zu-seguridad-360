@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	qrcode "github.com/skip2/go-qrcode"
 	"github.com/zu-seguridad/core/internal/model"
 	"github.com/zu-seguridad/core/internal/repository"
 	"gorm.io/gorm"
@@ -16,14 +17,15 @@ type TrainingService struct {
 	db             *gorm.DB
 	rabbit         *repository.RabbitMQ
 	syntheticPilot bool
+	publicAppURL   string
 }
 
-func NewTrainingService(db *gorm.DB, rabbit *repository.RabbitMQ, syntheticPilot ...bool) *TrainingService {
-	var synthetic bool
-	if len(syntheticPilot) > 0 {
-		synthetic = syntheticPilot[0]
-	}
-	return &TrainingService{db: db, rabbit: rabbit, syntheticPilot: synthetic}
+func NewTrainingService(db *gorm.DB, rabbit *repository.RabbitMQ, syntheticPilot bool, publicAppURL string) *TrainingService {
+	return &TrainingService{db: db, rabbit: rabbit, syntheticPilot: syntheticPilot, publicAppURL: publicAppURL}
+}
+
+func (s *TrainingService) verifyURL(folio string) string {
+	return strings.TrimRight(s.publicAppURL, "/") + "/verify/" + folio
 }
 
 type CreateTrainingInput struct {
@@ -141,10 +143,12 @@ func (s *TrainingService) Complete(ctx context.Context, trainingID, companyID, t
 		}
 		for _, employeeID := range employeeIDs {
 			score := input.Scores[employeeID.String()]
+			folio := "SYN-" + strings.ReplaceAll(uuid.NewString(), "-", "")
 			certificates = append(certificates, model.Certificate{
 				TenantID: tenantID, TrainingID: training.ID, EmployeeID: employeeID,
-				CompanyID: companyID, IsSynthetic: true, Folio: "SYN-" + strings.ReplaceAll(uuid.NewString(), "-", ""),
+				CompanyID: companyID, IsSynthetic: true, Folio: folio,
 				Score: score, IssuedAt: now, ExpiresAt: time.Time{}, IsValid: false,
+				QRCode: s.verifyURL(folio),
 			})
 		}
 		return tx.Create(&certificates).Error
@@ -163,6 +167,78 @@ func (s *TrainingService) GetExpiringCertificates(context.Context, uuid.UUID, *u
 	return []model.Certificate{}, nil
 }
 
-func (s *TrainingService) VerifyCertificate(context.Context, string) (*model.Certificate, error) {
-	return nil, ErrSensitiveDataProcessingDisabled
+// CertificateVerification is the deliberately minimized shape returned by the
+// public verification endpoint: it answers "is this folio real and valid",
+// not a dump of the underlying employee/training/company rows.
+type CertificateVerification struct {
+	Folio          string     `json:"folio"`
+	EmployeeName   string     `json:"employee_name"`
+	TrainingTitle  string     `json:"training_title"`
+	Category       string     `json:"category"`
+	IssuedAt       time.Time  `json:"issued_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+	IsValid        bool       `json:"is_valid"`
+	IsSynthetic    bool       `json:"is_synthetic"`
+	RevokedAt      *time.Time `json:"revoked_at,omitempty"`
+	ValidityNotice string     `json:"validity_notice"`
+}
+
+func (s *TrainingService) VerifyCertificate(ctx context.Context, folio string) (*CertificateVerification, error) {
+	if !s.syntheticPilot {
+		return nil, ErrSensitiveDataProcessingDisabled
+	}
+	folio = strings.TrimSpace(folio)
+	if folio == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var cert model.Certificate
+	if err := s.db.WithContext(ctx).Preload("Employee").Preload("Training").
+		Where("folio = ?", folio).First(&cert).Error; err != nil {
+		return nil, err
+	}
+
+	notice := "Certificado válido."
+	if cert.IsSynthetic {
+		notice = "Registro de datos sintéticos del piloto ZU360: NO es un certificado oficial ni tiene validez legal."
+	} else if cert.RevokedAt != nil {
+		notice = "Certificado revocado."
+	} else if !cert.IsValid {
+		notice = "Certificado marcado como no válido."
+	}
+
+	var expiresAt *time.Time
+	if !cert.ExpiresAt.IsZero() {
+		expiresAt = &cert.ExpiresAt
+	}
+
+	return &CertificateVerification{
+		Folio:          cert.Folio,
+		EmployeeName:   strings.TrimSpace(cert.Employee.FirstName + " " + cert.Employee.LastName),
+		TrainingTitle:  cert.Training.Title,
+		Category:       cert.Training.Category,
+		IssuedAt:       cert.IssuedAt,
+		ExpiresAt:      expiresAt,
+		IsValid:        cert.IsValid && cert.RevokedAt == nil,
+		IsSynthetic:    cert.IsSynthetic,
+		RevokedAt:      cert.RevokedAt,
+		ValidityNotice: notice,
+	}, nil
+}
+
+// CertificateQRPNG renders the QR image pointing at the public verification
+// page for a given folio. It re-checks the folio exists first so the image
+// endpoint can't be used to generate QR codes for arbitrary, unissued folios.
+func (s *TrainingService) CertificateQRPNG(ctx context.Context, folio string) ([]byte, error) {
+	if !s.syntheticPilot {
+		return nil, ErrSensitiveDataProcessingDisabled
+	}
+	folio = strings.TrimSpace(folio)
+	var count int64
+	if err := s.db.WithContext(ctx).Model(&model.Certificate{}).Where("folio = ?", folio).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return qrcode.Encode(s.verifyURL(folio), qrcode.Medium, 320)
 }

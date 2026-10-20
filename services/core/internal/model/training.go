@@ -52,7 +52,10 @@ type Certificate struct {
 	ExpiresAt   time.Time  `gorm:"index" json:"expires_at"`
 	PDFURL      string     `gorm:"size:500" json:"pdf_url"`
 	QRCode      string     `gorm:"size:500" json:"qr_code"`
-	IsValid     bool       `gorm:"default:true" json:"is_valid"`
+	// No gorm "default:true" here: callers always set this explicitly, and a
+	// default on a bool column makes GORM silently overwrite an explicit
+	// false (zero value) with the column default on INSERT.
+	IsValid     bool       `json:"is_valid"`
 	RevokedAt   *time.Time `json:"revoked_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 

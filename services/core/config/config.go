@@ -52,7 +52,8 @@ type Config struct {
 
 	OTELEndpoint string
 
-	BillingURL string
+	BillingURL   string
+	PublicAppURL string
 }
 
 func Load() *Config {
@@ -105,6 +106,7 @@ func Load() *Config {
 
 		OTELEndpoint: getEnv("OTEL_ENDPOINT", "http://localhost:4317"),
 		BillingURL:   getEnv("BILLING_URL", "http://billing:4010"),
+		PublicAppURL: getEnv("PUBLIC_APP_URL", "http://localhost:3000"),
 	}
 }
 

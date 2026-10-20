@@ -81,7 +81,10 @@ type ChecklistItem struct {
 	Code           string            `gorm:"size:50" json:"code"` // ej: "casco", "arnes", "linea_vida"
 	Description    string            `gorm:"type:text" json:"description"`
 	Type           ChecklistItemType `gorm:"size:20" json:"type"`
-	Mandatory      bool              `gorm:"default:true" json:"mandatory"`
+	// No gorm "default:true": ProtocolTemplates sets this explicitly per item
+	// (including false), and a default on a bool column makes GORM silently
+	// overwrite an explicit false with it on INSERT.
+	Mandatory      bool              `json:"mandatory"`
 	DetectionClass string            `gorm:"size:50" json:"detection_class"` // clase que el modelo de visión debe detectar
 	NormRef        string            `gorm:"size:60" json:"norm_ref"`
 	Severity       string            `gorm:"size:20" json:"severity"` // crítico si su ausencia puede ser fatal

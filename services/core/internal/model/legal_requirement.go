@@ -28,7 +28,10 @@ type LegalRequirement struct {
 	CompanyID        uuid.UUID             `gorm:"type:uuid;not null;index" json:"company_id"`
 	NormReference    string                `gorm:"not null;size:255" json:"norm_reference"` // "Decreto 1072 de 2015, Art. 2.2.4.6.8"
 	Title            string                `gorm:"type:text;not null" json:"title"`
-	Applicable       bool                  `gorm:"default:true" json:"applicable"`
+	// No gorm "default:true": the handler always sets this from the request
+	// body (applicable can legitimately be false), and a default on a bool
+	// column makes GORM silently overwrite an explicit false with it on INSERT.
+	Applicable       bool                  `json:"applicable"`
 	ComplianceStatus LegalComplianceStatus `gorm:"size:30;default:'pendiente_evaluacion'" json:"compliance_status"`
 	EvidenceRef      string                `gorm:"type:text" json:"evidence_ref"`
 	Notes            string                `gorm:"type:text" json:"notes"`

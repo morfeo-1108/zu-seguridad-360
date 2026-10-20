@@ -67,7 +67,7 @@ func main() {
 	companySvc := service.NewCompanyService(companyRepo, amqp, cfg.BillingURL, cfg.SyntheticPilotEnabled)
 	employeeSvc := service.NewEmployeeService(employeeRepo, amqp, cfg.SyntheticPilotEnabled)
 	incidentSvc := service.NewIncidentService(incidentRepo, amqp, cfg.SyntheticPilotEnabled)
-	trainingSvc := service.NewTrainingService(db, amqp, cfg.SyntheticPilotEnabled)
+	trainingSvc := service.NewTrainingService(db, amqp, cfg.SyntheticPilotEnabled, cfg.PublicAppURL)
 	riskSvc := service.NewRiskService(db)
 	mgmtSvc := service.NewManagementSystemService(db)
 	watchSvc := service.NewRegulatoryWatchService(db)
@@ -141,8 +141,14 @@ func main() {
 	// Protección JWT para todas las rutas siguientes
 	jwt := middleware.JWTProtected(cfg)
 
-	// Public certificate verification is not registered until its response is
-	// minimized and independently reviewed for personal-data exposure.
+	// Public certificate verification: unauthenticated by design (it's what a
+	// QR code on a printed certificate resolves to), response is minimized to
+	// folio/name/course/validity — no document numbers, no company internals.
+	// Rate-limited to make folio enumeration impractical.
+	publicCertLimiter := limiter.New(limiter.Config{Max: 30, Expiration: time.Minute})
+	publicVerify := app.Group("/v1/public/certificates", publicCertLimiter)
+	publicVerify.Get("/:folio/verify", trainingH.VerifyCertificate)
+	publicVerify.Get("/:folio/qr.png", trainingH.CertificateQR)
 
 	// Companies
 	co := app.Group("/v1/companies", jwt, middleware.Authorize(enforcer, "companies"))

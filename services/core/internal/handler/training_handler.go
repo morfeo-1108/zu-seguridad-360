@@ -65,13 +65,26 @@ func (h *TrainingHandler) Complete(c *fiber.Ctx) error {
 	})
 }
 
+// VerifyCertificate is public and unauthenticated by design — it's the
+// endpoint a QR code on a printed certificate resolves to, so anyone holding
+// the folio (an employer, an auditor) can check it without a ZU360 account.
 func (h *TrainingHandler) VerifyCertificate(c *fiber.Ctx) error {
 	folio := c.Params("folio")
-	cert, err := h.svc.VerifyCertificate(c.Context(), folio)
+	result, err := h.svc.VerifyCertificate(c.Context(), folio)
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, err.Error())
+		return fiber.NewError(fiber.StatusNotFound, "folio no encontrado")
 	}
-	return c.JSON(fiber.Map{"valid": true, "certificate": cert})
+	return c.JSON(fiber.Map{"found": true, "certificate": result})
+}
+
+func (h *TrainingHandler) CertificateQR(c *fiber.Ctx) error {
+	folio := c.Params("folio")
+	png, err := h.svc.CertificateQRPNG(c.Context(), folio)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "folio no encontrado")
+	}
+	c.Set("Content-Type", "image/png")
+	return c.Send(png)
 }
 
 func (h *TrainingHandler) GetExpiring(c *fiber.Ctx) error {

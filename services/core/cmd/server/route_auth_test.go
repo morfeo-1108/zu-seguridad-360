@@ -19,6 +19,11 @@ import (
 // with company scoping.
 var explicitlyPublicGroups = map[string]bool{
 	`app.Group("/v1/auth")`: true,
+	// Public certificate verification — what a QR code printed on a
+	// certificate resolves to. No session exists at scan time, so it cannot
+	// require jwt; it is rate-limited and returns a minimized DTO instead
+	// (see TrainingService.VerifyCertificate / CertificateQRPNG).
+	`app.Group("/v1/public/certificates", publicCertLimiter)`: true,
 }
 
 func TestEveryNonPublicRouteGroupRequiresJWT(t *testing.T) {
