@@ -77,6 +77,7 @@ func main() {
 	inspectionSvc := service.NewInspectionService(db)
 	committeeSvc := service.NewCommitteeService(db)
 	indicatorSvc := service.NewIndicatorService(incidentRepo, employeeRepo)
+	legalSvc := service.NewLegalRequirementService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -93,6 +94,7 @@ func main() {
 	inspectionH := handler.NewInspectionHandler(inspectionSvc)
 	committeeH := handler.NewCommitteeHandler(committeeSvc)
 	indicatorH := handler.NewIndicatorHandler(indicatorSvc)
+	legalH := handler.NewLegalRequirementHandler(legalSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -206,6 +208,12 @@ func main() {
 	epp.Get("/deliveries/expiring", eppH.ListExpiring)
 	epp.Get("/deliveries/employee/:employeeId", eppH.ListByEmployee)
 	epp.Put("/deliveries/:id/return", eppH.Return)
+
+	// Matriz legal: requisitos normativos aplicables y su estado de cumplimiento
+	legal := app.Group("/v1/companies/:companyId/legal-matrix", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "legal_matrix"))
+	legal.Get("/", legalH.List)
+	legal.Post("/", legalH.Create)
+	legal.Put("/:id/compliance", legalH.UpdateCompliance)
 
 	// Indicadores mensuales (IF, IS) derivados de incidentes + headcount activo
 	ind := app.Group("/v1/companies/:companyId/indicators", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "indicators"))
