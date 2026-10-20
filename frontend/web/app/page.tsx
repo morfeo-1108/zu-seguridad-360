@@ -62,77 +62,71 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ── Hero ── */}
-      <section className="relative flex min-h-[100vh] items-center overflow-hidden pt-28 pb-16 lg:pt-20">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0E1410] via-[#0B0F0C] to-[#0B0F0C]" />
-        <div className="absolute -left-40 top-1/4 h-[480px] w-[480px] animate-float-slow rounded-full bg-zu-lime/10 blur-[100px]" />
-        <div className="absolute -right-20 bottom-0 h-[420px] w-[420px] animate-float-slower rounded-full bg-emerald-500/10 blur-[100px]" />
+      {/* ── Hero: video de marca a pantalla completa ── */}
+      <section className="relative flex min-h-[100vh] items-center overflow-hidden">
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/videos/hero-poster.jpg"
+          onCanPlay={() => setVideoReady(true)}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
+        >
+          <source src="/videos/hero.mp4" type="video/mp4" />
+        </video>
+        <img
+          src="/videos/hero-poster.jpg"
+          alt=""
+          aria-hidden
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-0" : "opacity-100"}`}
+        />
+        {/* Velo oscuro para legibilidad del texto sobre el video */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-[#0B0F0C]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/20 to-black/60" />
 
-        <div className="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-14 px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-10 lg:px-10">
-          {/* Texto */}
-          <div className="animate-hero-in text-center lg:text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[12px] font-semibold tracking-wide text-zu-lime">
+        <div className="relative z-10 mx-auto w-full max-w-5xl px-6 pt-28 text-center lg:px-10">
+          <div className="animate-hero-in">
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[12px] font-semibold tracking-wide text-zu-lime backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-zu-lime" />
-              PLATAFORMA DE SST · COLOMBIA
+              SOFTWARE DE SEGURIDAD Y SALUD EN EL TRABAJO · COLOMBIA
             </div>
-            <h1 className="text-[40px] font-extrabold leading-[1.05] tracking-tight sm:text-[54px] lg:text-[64px]">
+            <h1 className="text-[42px] font-extrabold leading-[1.05] tracking-tight sm:text-[58px] lg:text-[72px]">
               Prevenimos hoy,
               <br />
               <span className="bg-gradient-to-r from-zu-lime to-emerald-400 bg-clip-text text-transparent">
                 protegemos siempre.
               </span>
             </h1>
-            <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-white/60 sm:text-[18px] lg:mx-0">
-              Gestión de seguridad y salud en el trabajo con aislamiento real por empresa,
-              ciclo PHVA sobre 5 marcos normativos y control de acceso verificado en cada
-              solicitud — no solo en la pantalla de login.
+            <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-relaxed text-white/75 sm:text-[20px]">
+              La plataforma que un profesional SST necesita para gestionar varias empresas a la vez:
+              control de acceso verificado en cada solicitud, trazabilidad completa y un ciclo PHVA
+              construido sobre los marcos normativos que ya exige la ley colombiana.
             </p>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+            <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] font-semibold uppercase tracking-wide text-white/50">
+              <span>Resolución 0312</span><span className="text-white/20">·</span>
+              <span>Decreto 1072</span><span className="text-white/20">·</span>
+              <span>ISO 45001</span><span className="text-white/20">·</span>
+              <span>GTC‑45</span>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/auth/login"
-                className="group inline-flex items-center gap-2 rounded-full bg-zu-lime px-7 py-3.5 text-[14px] font-bold text-[#0B0F0C] transition hover:bg-white"
+                className="group inline-flex items-center gap-2 rounded-full bg-zu-lime px-8 py-4 text-[15px] font-bold text-[#0B0F0C] shadow-[0_8px_30px_rgba(139,195,74,0.35)] transition hover:bg-white"
               >
                 Ingresar a la plataforma
                 <ArrowRight size={16} className="transition group-hover:translate-x-1" />
               </Link>
-              <a href="#capacidades" className="text-[14px] font-semibold text-white/70 hover:text-white transition">
+              <a href="#capacidades" className="text-[14px] font-semibold text-white/80 hover:text-white transition">
                 Ver qué incluye ↓
               </a>
             </div>
           </div>
-
-          {/* Pieza vertical: video de marca en marco tipo dispositivo */}
-          <div className="relative mx-auto w-full max-w-[300px] animate-hero-in lg:max-w-[340px]">
-            <div className="absolute inset-0 -z-10 scale-110 rounded-[2.5rem] bg-zu-lime/20 blur-3xl" />
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl ring-1 ring-white/5">
-              <div className="relative aspect-[9/16] w-full">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  poster="/videos/hero-poster.jpg"
-                  onCanPlay={() => setVideoReady(true)}
-                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
-                >
-                  <source src="/videos/hero.mp4" type="video/mp4" />
-                </video>
-                <img
-                  src="/videos/hero-poster.jpg"
-                  alt=""
-                  aria-hidden
-                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-0" : "opacity-100"}`}
-                />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-              </div>
-            </div>
-            <div className="mt-4 text-center text-[11px] font-medium uppercase tracking-widest text-white/35">
-              ZU 360 en campo
-            </div>
-          </div>
         </div>
+
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B0F0C] to-transparent" />
       </section>
 
       {/* ── Capacidades reales ── */}

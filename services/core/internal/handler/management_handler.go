@@ -44,6 +44,14 @@ func (h *ManagementHandler) InitSystem(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(sys)
 }
 
+func (h *ManagementHandler) GetActive(c *fiber.Ctx) error {
+	sys, err := h.svc.GetActiveForCompany(c.Context(), mustUUID(c.Locals("tenant_id")), mustUUID(c.Locals("company_id")))
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "sin sistema de gestión activo para esta empresa")
+	}
+	return c.JSON(sys)
+}
+
 func (h *ManagementHandler) Assess(c *fiber.Ctx) error {
 	systemID, err := managementPathID(c)
 	if err != nil {

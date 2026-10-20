@@ -22,6 +22,21 @@ func NewManagementSystemService(db *gorm.DB) *ManagementSystemService {
 	return &ManagementSystemService{db: db}
 }
 
+// GetActiveForCompany returns the company's current PHVA cycle (if any),
+// with its standards and objectives preloaded — the frontend needs this to
+// render the system without the caller already knowing a system ID.
+func (s *ManagementSystemService) GetActiveForCompany(ctx context.Context, tenantID, companyID uuid.UUID) (*model.ManagementSystem, error) {
+	var sys model.ManagementSystem
+	err := s.db.WithContext(ctx).
+		Preload("Standards").Preload("Objectives").
+		Where("tenant_id = ? AND company_id = ? AND status = 'active'", tenantID, companyID).
+		Order("year DESC").First(&sys).Error
+	if err != nil {
+		return nil, err
+	}
+	return &sys, nil
+}
+
 // ── Catálogo de estándares por marco normativo ───────────────
 // Cada entrada mapea cláusula → fase PHVA → módulo que la satisface.
 // Esto es la "matriz de trazabilidad" que pide la auditoría del Ministerio.

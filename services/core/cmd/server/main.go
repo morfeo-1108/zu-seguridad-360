@@ -272,6 +272,7 @@ func main() {
 	// company_id, fixing the same class of leak as evidence above.
 	phva := app.Group("/v1/companies/:companyId/phva", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "management"))
 	phva.Post("/systems", mgmtH.InitSystem)
+	phva.Get("/systems/active", mgmtH.GetActive)
 	phva.Post("/systems/:id/assess", mgmtH.Assess)
 	phva.Get("/systems/:id/score", mgmtH.Score)
 	phva.Post("/systems/:id/advance-phase", mgmtH.AdvancePhase)

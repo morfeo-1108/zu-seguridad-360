@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { alertAPI, checklistTemplateAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, portfolioAPI, riskAPI, trainingAPI, type AlertAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type PortfolioCompanyRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, checklistTemplateAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, type AlertAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PortfolioCompanyRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -59,6 +59,26 @@ export type ChecklistTemplate = ChecklistTemplateAPIRecord;
 
 export function useChecklistTemplates(companyId: string) {
   return useQuery({ queryKey: ["checklist-templates", companyId], queryFn: async () => (await checklistTemplateAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type MedicalExam = MedicalExamAPIRecord;
+
+export function useMedicalPendingReview(companyId: string) {
+  return useQuery({ queryKey: ["medical-pending", companyId], queryFn: async () => (await medicalAPI.pendingReview(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export function useMedicalExpiring(companyId: string) {
+  return useQuery({ queryKey: ["medical-expiring", companyId], queryFn: async () => (await medicalAPI.expiring(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export function useMedicalByEmployee(companyId: string, employeeId: string) {
+  return useQuery({ queryKey: ["medical-employee", companyId, employeeId], queryFn: async () => (await medicalAPI.byEmployee(companyId, employeeId)).data.data, enabled: !!companyId && !!employeeId, retry: 1 });
+}
+
+export type ManagementSystem = ManagementSystemAPIRecord;
+
+export function useActiveManagementSystem(companyId: string) {
+  return useQuery({ queryKey: ["management-active", companyId], queryFn: async () => (await managementAPI.getActive(companyId)).data, enabled: !!companyId, retry: false });
 }
 
 export type Committee = CommitteeAPIRecord;

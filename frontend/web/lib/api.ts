@@ -472,6 +472,60 @@ export const portfolioAPI = {
   summary: () => api.get<{ data: PortfolioCompanyRecord[] }>(`/api/core/portfolio`),
 };
 
+export interface MedicalExamAPIRecord {
+  id: string;
+  employee_id: string;
+  type: "ingreso" | "periodico" | "retiro";
+  ips_name: string;
+  scheduled_at: string | null;
+  performed_at: string | null;
+  expires_at: string | null;
+  aptitude_result: "apto" | "apto_con_restriccion" | "no_apto" | "pendiente_revision";
+  restrictions: string[];
+  review_notes: string;
+  created_at: string;
+}
+
+export const medicalAPI = {
+  pendingReview: (companyId: string) => api.get<{ data: MedicalExamAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/medical-exams/pending-review`),
+  expiring: (companyId: string) => api.get<{ data: MedicalExamAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/medical-exams/expiring`),
+  byEmployee: (companyId: string, employeeId: string) => api.get<{ data: MedicalExamAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/medical-exams/employee/${employeeId}`),
+  schedule: (companyId: string, data: { employee_id: string; type: string; ips_name: string; scheduled_at: string }) =>
+    api.post<MedicalExamAPIRecord>(`/api/core/companies/${companyId}/medical-exams`, data),
+  review: (companyId: string, id: string, data: { aptitude_result: string; restrictions?: string[]; review_notes?: string; expires_at?: string }) =>
+    api.put<MedicalExamAPIRecord>(`/api/core/companies/${companyId}/medical-exams/${id}/review`, data),
+};
+
+export interface ComplianceStandardAPIRecord {
+  id: string;
+  framework: string;
+  clause: string;
+  title: string;
+  phase: string;
+  linked_module: string;
+  status: string;
+  system_assessment: string;
+}
+
+export interface ManagementSystemAPIRecord {
+  id: string;
+  company_id: string;
+  year: number;
+  current_phase: "planear" | "hacer" | "verificar" | "actuar";
+  status: string;
+  standards: ComplianceStandardAPIRecord[];
+}
+
+export const managementAPI = {
+  getActive: (companyId: string) => api.get<ManagementSystemAPIRecord>(`/api/core/companies/${companyId}/phva/systems/active`),
+  initSystem: (companyId: string, data: { year: number }) => api.post<ManagementSystemAPIRecord>(`/api/core/companies/${companyId}/phva/systems`, data),
+  assess: (companyId: string, systemId: string) => api.post(`/api/core/companies/${companyId}/phva/systems/${systemId}/assess`, {}),
+  score: (companyId: string, systemId: string) => api.get<{ compliance_score: number | null; validation_coverage: number; total_standards: number; human_validated: number; note: string }>(`/api/core/companies/${companyId}/phva/systems/${systemId}/score`),
+  advancePhase: (companyId: string, systemId: string) => api.post<{ current_phase: string }>(`/api/core/companies/${companyId}/phva/systems/${systemId}/advance-phase`, {}),
+  validateStandard: (companyId: string, standardId: string, status: string) =>
+    api.put(`/api/core/companies/${companyId}/phva/standards/${standardId}/validate`, { status }),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),
