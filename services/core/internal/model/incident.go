@@ -42,6 +42,7 @@ type Incident struct {
 	GPSLng            *float64         `json:"gps_lng"`
 	Description       string           `gorm:"type:text;not null" json:"description"`
 	InjuredCount      int              `gorm:"default:0" json:"injured_count"`
+	LostDays          int              `gorm:"default:0" json:"lost_days"` // días de incapacidad por el accidente, para el Índice de Severidad
 	InjuredBodyPart   string           `gorm:"size:100" json:"injured_body_part"`
 	InjuryNature      string           `gorm:"size:100" json:"injury_nature"`
 	CausalTree        JSONB            `gorm:"type:jsonb" json:"causal_tree"`

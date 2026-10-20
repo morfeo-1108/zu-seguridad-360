@@ -67,11 +67,22 @@ func (r *IncidentRepository) FindOpenByTenant(ctx context.Context, tenantID uuid
 	return incidents, err
 }
 
-// IndicatorsIF calcula Índice de Frecuencia = (AT * 1,000,000) / HHT
+// CountByPeriod counts work accidents (accidente_trabajo) in [from, to) for
+// the Índice de Frecuencia: IF = (AT count * 240,000) / HHT.
 func (r *IncidentRepository) CountByPeriod(ctx context.Context, companyID uuid.UUID, from, to time.Time) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.Incident{}).
-		Where("company_id = ? AND type = 'accidente_trabajo' AND occurred_at BETWEEN ? AND ?", companyID, from, to).
+		Where("company_id = ? AND type = 'accidente_trabajo' AND occurred_at >= ? AND occurred_at < ?", companyID, from, to).
 		Count(&count).Error
 	return count, err
+}
+
+// SumLostDaysByPeriod sums lost_days from work accidents in [from, to) for
+// the Índice de Severidad: IS = (lost_days * 240,000) / HHT.
+func (r *IncidentRepository) SumLostDaysByPeriod(ctx context.Context, companyID uuid.UUID, from, to time.Time) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).Model(&model.Incident{}).
+		Where("company_id = ? AND type = 'accidente_trabajo' AND occurred_at >= ? AND occurred_at < ?", companyID, from, to).
+		Select("COALESCE(SUM(lost_days), 0)").Scan(&total).Error
+	return total, err
 }

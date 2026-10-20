@@ -76,6 +76,7 @@ func main() {
 	eppSvc := service.NewEPPService(db)
 	inspectionSvc := service.NewInspectionService(db)
 	committeeSvc := service.NewCommitteeService(db)
+	indicatorSvc := service.NewIndicatorService(incidentRepo, employeeRepo)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -91,6 +92,7 @@ func main() {
 	eppH := handler.NewEPPHandler(eppSvc)
 	inspectionH := handler.NewInspectionHandler(inspectionSvc)
 	committeeH := handler.NewCommitteeHandler(committeeSvc)
+	indicatorH := handler.NewIndicatorHandler(indicatorSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -204,6 +206,10 @@ func main() {
 	epp.Get("/deliveries/expiring", eppH.ListExpiring)
 	epp.Get("/deliveries/employee/:employeeId", eppH.ListByEmployee)
 	epp.Put("/deliveries/:id/return", eppH.Return)
+
+	// Indicadores mensuales (IF, IS) derivados de incidentes + headcount activo
+	ind := app.Group("/v1/companies/:companyId/indicators", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "indicators"))
+	ind.Get("/monthly", indicatorH.Monthly)
 
 	// COPASST / Vigía Ocupacional: comité, miembros por periodo y actas
 	committee := app.Group("/v1/companies/:companyId/committees", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "committees"))
