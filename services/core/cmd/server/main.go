@@ -75,6 +75,7 @@ func main() {
 	evidenceSvc := service.NewEvidenceService(db)
 	eppSvc := service.NewEPPService(db)
 	inspectionSvc := service.NewInspectionService(db)
+	committeeSvc := service.NewCommitteeService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -89,6 +90,7 @@ func main() {
 	riskH := handler.NewRiskHandler(riskSvc)
 	eppH := handler.NewEPPHandler(eppSvc)
 	inspectionH := handler.NewInspectionHandler(inspectionSvc)
+	committeeH := handler.NewCommitteeHandler(committeeSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -202,6 +204,13 @@ func main() {
 	epp.Get("/deliveries/expiring", eppH.ListExpiring)
 	epp.Get("/deliveries/employee/:employeeId", eppH.ListByEmployee)
 	epp.Put("/deliveries/:id/return", eppH.Return)
+
+	// COPASST / Vigía Ocupacional: comité, miembros por periodo y actas
+	committee := app.Group("/v1/companies/:companyId/committees", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "committees"))
+	committee.Get("/", committeeH.List)
+	committee.Post("/", committeeH.Create)
+	committee.Get("/:committeeId/meetings", committeeH.ListMeetings)
+	committee.Post("/:committeeId/meetings", committeeH.CreateMeeting)
 
 	// Inspecciones con checklist y plan de acción autogenerado desde hallazgos
 	insp := app.Group("/v1/companies/:companyId/inspections", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "inspections"))

@@ -73,6 +73,8 @@ func RunAllMigrations(db *gorm.DB) error {
 		&model.EPPItem{},
 		&model.EPPDelivery{},
 		&model.Inspection{},
+		&model.Committee{},
+		&model.CommitteeMeeting{},
 		&model.ConsentRecord{},
 		&model.Project{},
 		&model.Zone{},
