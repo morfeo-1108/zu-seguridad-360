@@ -1,5 +1,22 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
+  // Behind the Cloudflare Tunnel every request reaches us as plain HTTP, so
+  // the original scheme only survives in X-Forwarded-Proto. Send http:// to
+  // https:// — Core only accepts the HTTPS origin, so Google sign-in from an
+  // http:// page would fail. Local requests (no header) are untouched.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          { type: "header", key: "x-forwarded-proto", value: "http" },
+          { type: "host", value: "www.zuseguridad360.com" },
+        ],
+        destination: "https://www.zuseguridad360.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/api/core/:path*", destination: `${process.env.NEXT_PUBLIC_CORE_URL || "http://core:4001"}/v1/:path*` },
