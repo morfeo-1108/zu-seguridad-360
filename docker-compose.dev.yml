@@ -106,7 +106,15 @@ services:
 
   # ─── OBJECT STORAGE (S3 local) ───────────────────────────
   minio:
-    image: quay.io/minio/minio:latest
+    # MinIO Inc. cerró el pull anónimo de quay.io/minio/minio y
+    # minio/minio (Docker Hub) en septiembre 2026 (archivaron la edición
+    # community) — confirmado en vivo, 401 Unauthorized en ambos
+    # registros sin importar el tag. cgr.dev/chainguard/minio es el
+    # mismo MinIO open-source, empaquetado por Chainguard, verificado
+    # en vivo: arranca con los mismos args/env (server /data
+    # --console-address ":9001", MINIO_ROOT_USER/PASSWORD) y responde
+    # 200 en /minio/health/live.
+    image: cgr.dev/chainguard/minio:latest
     container_name: zu-minio
     command: server /data --console-address ":9001"
     ports:
