@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ShieldCheck, Building2, HardHat, FileCheck2, GraduationCap, FileText,
-  Lock, Boxes, ArrowRight, Sparkles, ScrollText, RadioTower, Fingerprint,
+  Lock, Boxes, ArrowRight, Sparkles, ScrollText, RadioTower, Fingerprint, Eye,
 } from "lucide-react";
 import { ZULogo } from "@/components/brand/logo";
 import { Reveal, spotlightHandler } from "@/components/landing/reveal";
@@ -19,6 +19,13 @@ const CAPABILITIES = [
   { icon: GraduationCap, title: "Capacitación con vencimientos bajo control", desc: "Cursos, asistencia y certificados con alertas automáticas antes de que una vigencia se venza." },
   { icon: FileText, title: "Documentos y certificados verificables", desc: "Generación con plantillas, control de versiones y verificación pública por folio — cualquiera puede confirmar que un certificado es auténtico." },
   { icon: ShieldCheck, title: "Permisos por rol, sin excepciones", desc: "Cada acción queda ligada a un rol y una empresa específicos, con revisión humana obligatoria para cualquier cambio normativo." },
+];
+
+const DIFFERENTIATORS = [
+  { icon: Lock, title: "Aislamiento verificado, no prometido", desc: "La mayoría de plataformas de SST en Colombia declara gestión multiempresa. La nuestra se probó con intentos reales de acceso cruzado entre cuentas distintas — no es una frase de la página de ventas." },
+  { icon: Sparkles, title: "Asistencia con trazabilidad, no una caja negra", desc: "Cuando la IA entra en juego, cita su fuente normativa y pasa por la aprobación de un profesional antes de modificar cualquier registro. Ninguna decisión se toma sola." },
+  { icon: FileCheck2, title: "Evidencia con procedencia", desc: "Quién hizo qué, cuándo y sobre cuál empresa — siempre exportable. Ante una auditoría del Ministerio, eso pesa más que una promesa de cumplimiento." },
+  { icon: Eye, title: "Precio público, sin letra pequeña", desc: "En un mercado donde ningún proveedor publica su precio, el nuestro está en esta misma página. Sin cotización, sin esperar una llamada de ventas." },
 ];
 
 const ROADMAP_MODULES = [
@@ -147,6 +154,29 @@ export default function HomePage() {
         </div>
 
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B0F0C] to-transparent" />
+      </section>
+
+      {/* ── Por qué somos diferentes ── */}
+      <section className="relative border-t border-white/[0.06] bg-[#0B0F0C] py-20">
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
+          <Reveal className="mb-12 max-w-2xl">
+            <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Por qué ZU 360</div>
+            <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[36px]">Lo que ningún otro software de SST en Colombia hace igual.</h2>
+          </Reveal>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {DIFFERENTIATORS.map((d, i) => (
+              <Reveal key={d.title} delay={i * 80}>
+                <div onMouseMove={spotlightHandler} className="spotlight-card h-full rounded-2xl border border-zu-lime/15 bg-gradient-to-b from-zu-lime/[0.05] to-transparent p-6 transition-all duration-300 hover:-translate-y-1">
+                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zu-lime/10 text-zu-lime">
+                    <d.icon size={20} />
+                  </div>
+                  <h3 className="mb-2 text-[15px] font-bold text-white">{d.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-white/55">{d.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── Capacidades ── */}
