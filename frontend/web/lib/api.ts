@@ -113,6 +113,47 @@ export interface EmployeeAPIRecord {
   status: string;
 }
 
+export interface RiskEntryAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  matrix_version: number;
+  process: string;
+  area: string;
+  hazard_type: string;
+  hazard_source: string;
+  health_effect: string;
+  workers_exposed: number;
+  nd: number;
+  ne: number;
+  np: number;
+  nc: number;
+  nr: number;
+  acceptability: "aceptable" | "no_aceptable" | "critico";
+  current_control: string;
+  created_at: string;
+}
+
+export interface RiskHeatmap {
+  critical: RiskEntryAPIRecord[];
+  not_acceptable: RiskEntryAPIRecord[];
+  acceptable: RiskEntryAPIRecord[];
+  summary: { total: number; critical: number; not_acceptable: number; acceptable: number };
+}
+
+export interface CreateRiskPayload {
+  process: string;
+  area: string;
+  hazard_type: string;
+  hazard_source: string;
+  health_effect: string;
+  workers_exposed: number;
+  nd: number;
+  ne: number;
+  nc: number;
+  current_control?: string;
+}
+
 export interface IncidentAPIRecord {
   id: string;
   tenant_id: string;
@@ -247,6 +288,12 @@ export const incidentAPI = {
   investigate: (companyId: string, id: string) => api.put<IncidentAPIRecord>(`/api/core/companies/${companyId}/incidents/${id}/investigate`, {}),
   close: (companyId: string, id: string) => api.put<IncidentAPIRecord>(`/api/core/companies/${companyId}/incidents/${id}/close`, {}),
   furatPreview: (companyId: string, id: string) => api.post<FurATPreview>(`/api/core/companies/${companyId}/incidents/${id}/furat`, {}),
+};
+
+export const riskAPI = {
+  list: (companyId: string) => api.get<{ data: RiskEntryAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/risks`),
+  heatmap: (companyId: string) => api.get<RiskHeatmap>(`/api/core/companies/${companyId}/risks/heatmap`),
+  create: (companyId: string, data: CreateRiskPayload) => api.post<RiskEntryAPIRecord>(`/api/core/companies/${companyId}/risks`, data),
 };
 
 export const trainingAPI = {
