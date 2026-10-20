@@ -59,6 +59,12 @@ export default function HomePage() {
     const el = videoRef.current;
     if (!el) return;
     const tryPlay = () => { el.play().catch(() => { /* retried on canplay/loadeddata below */ }); };
+    // With preload="auto" the browser can fire canplay/loadeddata before
+    // hydration attaches these listeners, since SSR already streamed the
+    // <video> tag. Those events don't fire again, so videoReady would stay
+    // false forever even though playback succeeded. Check readyState
+    // synchronously in case the event already happened.
+    if (el.readyState >= 2) setVideoReady(true);
     tryPlay();
     el.addEventListener("canplay", tryPlay);
     el.addEventListener("loadeddata", tryPlay);
