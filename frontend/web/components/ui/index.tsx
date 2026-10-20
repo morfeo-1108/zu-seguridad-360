@@ -50,7 +50,7 @@ export function KPICard({ label, value, sub, trend, icon: Icon, valueColor }: { 
       <div className="flex justify-between items-start mb-3">
         <span className="text-[11.5px] text-zu-text2 font-semibold tracking-wide">{label}</span>
         {Icon && (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zu-accent/10">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: `color-mix(in srgb, ${valueColor || "var(--accent)"} 15%, transparent)` }}>
             <Icon size={13} style={{ color: valueColor || "var(--accent)" }} />
           </span>
         )}

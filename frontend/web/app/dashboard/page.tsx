@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { Building2, Users, Activity, AlertTriangle, ArrowRight, CircleCheck, BellRing } from "lucide-react";
+import { Building2, Users, Activity, ArrowRight, ShieldCheck, BellRing, FlaskConical, Briefcase } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { Card, Badge, KPICard, PageHeader, Spinner } from "@/components/ui";
+import { Card, Badge, KPICard, Spinner } from "@/components/ui";
 import { useAlerts, useCompanies, useEmployees, useCompanyIncidents } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
@@ -11,7 +11,15 @@ const alertCategoryLabel: Record<string, string> = {
   medical_exam: "Examen médico", epp: "EPP", risk_review: "Revisión de riesgo", legal_requirement: "Requisito legal",
 };
 
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+
 export default function DashboardPage() {
+  const user = useAuthStore((state) => state.user);
   const activeCompany = useAuthStore((state) => state.activeCompany);
   const { data: companies, isLoading: companiesLoading, isError: companiesError } = useCompanies();
   const companyId = activeCompany?.id || "";
@@ -20,18 +28,35 @@ export default function DashboardPage() {
   const { data: alerts, isLoading: alertsLoading } = useAlerts(companyId);
   const employees = employeeResponse?.data || [];
   const syntheticIncidents = incidents || [];
+  const today = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <DashboardShell>
-      <PageHeader title="Panel del piloto" description="Estado de datos sintéticos en la empresa activa; sin métricas inventadas ni conexiones a módulos de alto riesgo." />
-      <Card className="mb-5 border-amber-300 bg-amber-50 p-4">
-        <div className="flex items-start gap-3"><AlertTriangle size={18} className="mt-0.5 text-amber-800"/><div><h2 className="text-sm font-bold text-amber-950">Resumen de prueba · {activeCompany?.name || "sin empresa activa"}</h2><p className="mt-1 text-xs leading-relaxed text-amber-900">Esta pantalla muestra únicamente registros marcados como sintéticos. No se ejecutan OCR, biometría, IA externa, drones, alertas regulatorias ni cálculos de cumplimiento.</p></div></div>
-      </Card>
+      <div className="mb-6 flex items-start justify-between gap-4 pb-5 border-b border-zu-border/70">
+        <div className="min-w-0">
+          <p className="text-[12px] font-semibold text-zu-text3 capitalize">{today}</p>
+          <h1 className="mt-0.5 text-[24px] font-extrabold tracking-tight text-zu-text1">
+            {greeting()}, {user?.firstName || "profesional"}
+          </h1>
+          <p className="mt-1.5 text-[13px] text-zu-text2">
+            Esto es lo que necesita tu atención en <span className="font-semibold text-zu-text1">{activeCompany?.name || "tu cartera"}</span> hoy.
+          </p>
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-2">
+          <Link href="/dashboard/portfolio" className="inline-flex items-center gap-1.5 rounded-lg border border-zu-border bg-white px-3.5 py-2 text-[12px] font-bold text-zu-text1 shadow-zu transition-colors hover:border-zu-accent hover:text-zu-accent">
+            <Briefcase size={13} /> Ver portafolio completo <ArrowRight size={13} />
+          </Link>
+          <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-800">
+            <FlaskConical size={12} /> Datos sintéticos de demostración
+          </div>
+        </div>
+      </div>
+
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KPICard label="Empresas con membership" value={companiesLoading ? "…" : companies?.length ?? 0} icon={Building2} sub="lista autorizada por Core"/>
-        <KPICard label="Perfiles sintéticos" value={employeesLoading ? "…" : employees.length} icon={Users} sub={activeCompany?.name || "selecciona una empresa"}/>
-        <KPICard label="Incidentes de demostración" value={incidentsLoading ? "…" : syntheticIncidents.length} icon={Activity} sub="empresa activa · sin reporte externo"/>
-        <KPICard label="Estado del entorno" value="Sintético" icon={CircleCheck} valueColor="var(--amber)" sub="no habilitado para datos reales"/>
+        <KPICard label="Empresas en cartera" value={companiesLoading ? "…" : companies?.length ?? 0} icon={Building2} sub="autorizadas por membership"/>
+        <KPICard label="Trabajadores registrados" value={employeesLoading ? "…" : employees.length} icon={Users} sub={activeCompany?.name || "selecciona una empresa"}/>
+        <KPICard label="Incidentes registrados" value={incidentsLoading ? "…" : syntheticIncidents.length} icon={Activity} sub="empresa activa"/>
+        <KPICard label="Estado del entorno" value="Piloto" icon={ShieldCheck} valueColor="var(--amber)" sub="aislado de datos reales"/>
       </div>
       {(companiesError || employeesError || incidentsError) && <Card className="mb-4 border-red-200 bg-red-50 p-3 text-xs text-red-800">Una o más consultas a Core no están disponibles. Los conteos marcados “—” no se sustituyen por datos demo.</Card>}
 
@@ -56,12 +81,12 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">
-          <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Personas de prueba</h2><Link href="/dashboard/employees" className="text-xs font-semibold text-zu-accent">Gestionar <ArrowRight size={12} className="inline"/></Link></div>
-          {employeesLoading ? <Spinner/> : employees.length ? <div className="divide-y divide-zu-border">{employees.slice(0, 5).map((employee) => <div key={employee.id} className="flex items-center justify-between py-2"><div><p className="text-xs font-semibold">{employee.first_name} {employee.last_name}</p><p className="font-mono text-[10px] text-zu-text3">{employee.document_number}</p></div><Badge variant="amber">SINTÉTICO</Badge></div>)}</div> : <p className="py-5 text-center text-xs text-zu-text3">No hay perfiles para la empresa activa. <Link href="/dashboard/employees" className="font-semibold text-zu-accent">Crear uno</Link></p>}
+          <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Trabajadores recientes</h2><Link href="/dashboard/employees" className="text-xs font-semibold text-zu-accent">Gestionar <ArrowRight size={12} className="inline"/></Link></div>
+          {employeesLoading ? <Spinner/> : employees.length ? <div className="divide-y divide-zu-border">{employees.slice(0, 5).map((employee) => <div key={employee.id} className="flex items-center justify-between py-2"><div><p className="text-xs font-semibold">{employee.first_name} {employee.last_name}</p><p className="font-mono text-[10px] text-zu-text3">{employee.document_number}</p></div><Badge variant="amber">SINTÉTICO</Badge></div>)}</div> : <p className="py-5 text-center text-xs text-zu-text3">No hay trabajadores para la empresa activa. <Link href="/dashboard/employees" className="font-semibold text-zu-accent">Crear uno</Link></p>}
         </Card>
         <Card className="p-4">
-          <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Incidentes de demostración</h2><Link href="/dashboard/incidents" className="text-xs font-semibold text-zu-accent">Ver módulo <ArrowRight size={12} className="inline"/></Link></div>
-          {incidentsLoading ? <Spinner/> : syntheticIncidents.length ? <div className="divide-y divide-zu-border">{syntheticIncidents.slice(0, 5).map((incident) => <div key={incident.id} className="py-2"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-semibold">{incident.description}</p><Badge variant="amber">SINTÉTICO</Badge></div><p className="mt-1 text-[10px] text-zu-text3">{incident.location} · {incident.status} · {new Date(incident.occurred_at).toLocaleDateString("es-CO")}</p></div>)}</div> : <p className="py-5 text-center text-xs text-zu-text3">No hay incidentes de prueba registrados.</p>}
+          <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Incidentes recientes</h2><Link href="/dashboard/incidents" className="text-xs font-semibold text-zu-accent">Ver módulo <ArrowRight size={12} className="inline"/></Link></div>
+          {incidentsLoading ? <Spinner/> : syntheticIncidents.length ? <div className="divide-y divide-zu-border">{syntheticIncidents.slice(0, 5).map((incident) => <div key={incident.id} className="py-2"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-semibold">{incident.description}</p><Badge variant="amber">SINTÉTICO</Badge></div><p className="mt-1 text-[10px] text-zu-text3">{incident.location} · {incident.status} · {new Date(incident.occurred_at).toLocaleDateString("es-CO")}</p></div>)}</div> : <p className="py-5 text-center text-xs text-zu-text3">No hay incidentes registrados.</p>}
         </Card>
       </div>
       <div className="mt-4 flex items-center gap-2 text-[11px] text-zu-text3"><Building2 size={13}/> El selector superior cambia de empresa mediante un nuevo token firmado y membership comprobada por Core.</div>
