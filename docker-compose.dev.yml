@@ -27,6 +27,7 @@ services:
       - postgres_synthetic_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     networks: [zu-network]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U zuadmin -d zu_core_synthetic"]
       interval: 5s
@@ -42,6 +43,7 @@ services:
     volumes:
       - redis_data:/data
     networks: [zu-network]
+    restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -56,6 +58,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks: [zu-network]
+    restart: unless-stopped
 
   # ─── VECTOR DB ───────────────────────────────────────────
   weaviate:
@@ -115,6 +118,7 @@ services:
     volumes:
       - minio_data:/data
     networks: [zu-network]
+    restart: unless-stopped
 
   # ─── API GATEWAY ─────────────────────────────────────────
   kong:
@@ -239,6 +243,7 @@ services:
     env_file: ./services/media/.env.dev
     depends_on: [minio, rabbitmq]
     networks: [zu-network]
+    restart: unless-stopped
 
   mail:
     build:
@@ -286,6 +291,7 @@ services:
     env_file: ./services/attention/.env.dev
     depends_on: [postgres, redis]
     networks: [zu-network]
+    restart: unless-stopped
 
   onboarding:
     build:
@@ -308,6 +314,7 @@ services:
     env_file: ./services/billing/.env.dev
     depends_on: [postgres, rabbitmq]
     networks: [zu-network]
+    restart: unless-stopped
 
   sla:
     build:
