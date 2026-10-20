@@ -403,6 +403,28 @@ export const indicatorAPI = {
     api.get<MonthlyIndicators>(`/api/core/companies/${companyId}/indicators/monthly`, { params: { year, month, standard_hours: standardHours } }),
 };
 
+export interface LegalRequirementAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  norm_reference: string;
+  title: string;
+  applicable: boolean;
+  compliance_status: "cumple" | "parcial" | "no_cumple" | "pendiente_evaluacion";
+  evidence_ref: string;
+  notes: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+}
+
+export const legalMatrixAPI = {
+  list: (companyId: string) => api.get<{ data: LegalRequirementAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/legal-matrix`),
+  create: (companyId: string, data: { norm_reference: string; title: string; applicable: boolean }) =>
+    api.post<LegalRequirementAPIRecord>(`/api/core/companies/${companyId}/legal-matrix`, data),
+  updateCompliance: (companyId: string, id: string, data: { compliance_status: string; evidence_ref?: string; notes?: string }) =>
+    api.put<LegalRequirementAPIRecord>(`/api/core/companies/${companyId}/legal-matrix/${id}/compliance`, data),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),
