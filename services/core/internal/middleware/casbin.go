@@ -61,7 +61,7 @@ func LoadDefaultPolicies(e *casbin.Enforcer) error {
 			return err
 		}
 	}
-	for _, resource := range []string{"medical_exams", "incidents", "trainings", "projects", "evidence", "management", "regulatory_read", "risks", "epp", "inspections", "committees", "indicators", "legal_matrix"} {
+	for _, resource := range []string{"medical_exams", "incidents", "trainings", "projects", "evidence", "management", "regulatory_read", "risks", "epp", "inspections", "committees", "indicators", "legal_matrix", "alerts"} {
 		if err := add("professional_sst", resource, "read"); err != nil {
 			return err
 		}

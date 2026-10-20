@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/zu-seguridad/core/internal/model"
 	"gorm.io/gorm"
@@ -40,7 +42,34 @@ func (s *RiskService) CreateEntry(ctx context.Context, input CreateRiskInput, co
 		CurrentControl: input.CurrentControl,
 	}
 	entry.CalculateNR() // GTC 45: ND×NE=NP; NP×NC=NR
+	nextReview := nextReviewFor(entry.Acceptability)
+	entry.NextReviewAt = &nextReview
 	return entry, s.db.WithContext(ctx).Create(entry).Error
+}
+
+// nextReviewFor sets a review cadence by risk level: critical risks get
+// reviewed far sooner than acceptable ones. There is no single universal
+// GTC-45 review interval — this is a reasonable, documented default, not a
+// cited normative requirement.
+func nextReviewFor(level model.RiskLevel) time.Time {
+	now := time.Now().UTC()
+	switch level {
+	case model.RiskLevelCritical:
+		return now.AddDate(0, 3, 0)
+	case model.RiskLevelNotAcceptable:
+		return now.AddDate(0, 6, 0)
+	default:
+		return now.AddDate(1, 0, 0)
+	}
+}
+
+func (s *RiskService) ListNeedingReview(ctx context.Context, companyID, tenantID uuid.UUID, days int) ([]model.RiskEntry, error) {
+	cutoff := time.Now().UTC().AddDate(0, 0, days)
+	var entries []model.RiskEntry
+	err := s.db.WithContext(ctx).
+		Where("company_id = ? AND tenant_id = ? AND next_review_at IS NOT NULL AND next_review_at <= ?", companyID, tenantID, cutoff).
+		Order("next_review_at ASC").Find(&entries).Error
+	return entries, err
 }
 
 func (s *RiskService) GetMatrix(ctx context.Context, companyID, tenantID uuid.UUID) ([]model.RiskEntry, error) {

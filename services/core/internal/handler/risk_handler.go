@@ -35,6 +35,16 @@ func (h *RiskHandler) List(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": entries, "total": len(entries)})
 }
 
+func (h *RiskHandler) NeedingReview(c *fiber.Ctx) error {
+	tenantID := mustUUID(c.Locals("tenant_id"))
+	companyID := mustUUID(c.Locals("company_id"))
+	entries, err := h.svc.ListNeedingReview(c.Context(), companyID, tenantID, 30)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "no fue posible consultar revisiones pendientes")
+	}
+	return c.JSON(fiber.Map{"data": entries, "total": len(entries)})
+}
+
 func (h *RiskHandler) HeatMap(c *fiber.Ctx) error {
 	tenantID := mustUUID(c.Locals("tenant_id"))
 	companyID := mustUUID(c.Locals("company_id"))

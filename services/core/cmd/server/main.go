@@ -78,6 +78,7 @@ func main() {
 	committeeSvc := service.NewCommitteeService(db)
 	indicatorSvc := service.NewIndicatorService(incidentRepo, employeeRepo)
 	legalSvc := service.NewLegalRequirementService(db)
+	alertSvc := service.NewAlertService(medicalSvc, eppSvc, riskSvc, legalSvc)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -95,6 +96,7 @@ func main() {
 	committeeH := handler.NewCommitteeHandler(committeeSvc)
 	indicatorH := handler.NewIndicatorHandler(indicatorSvc)
 	legalH := handler.NewLegalRequirementHandler(legalSvc)
+	alertH := handler.NewAlertHandler(alertSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -209,6 +211,10 @@ func main() {
 	epp.Get("/deliveries/employee/:employeeId", eppH.ListByEmployee)
 	epp.Put("/deliveries/:id/return", eppH.Return)
 
+	// Alertas unificadas: agrega vencimientos ya existentes por módulo
+	alerts := app.Group("/v1/companies/:companyId/alerts", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "alerts"))
+	alerts.Get("/", alertH.List)
+
 	// Matriz legal: requisitos normativos aplicables y su estado de cumplimiento
 	legal := app.Group("/v1/companies/:companyId/legal-matrix", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "legal_matrix"))
 	legal.Get("/", legalH.List)
@@ -238,6 +244,7 @@ func main() {
 	risk.Get("/", riskH.List)
 	risk.Post("/", riskH.Create)
 	risk.Get("/heatmap", riskH.HeatMap)
+	risk.Get("/needing-review", riskH.NeedingReview)
 
 	// ── Sistema de Gestión PHVA + cumplimiento ISO/Res.0312 ──
 	// Every systemId/standardId lookup below is scoped to the token's active
