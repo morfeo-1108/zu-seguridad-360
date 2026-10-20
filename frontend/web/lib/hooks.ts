@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, riskAPI, trainingAPI, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, riskAPI, trainingAPI, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -53,4 +53,14 @@ export type Inspection = InspectionAPIRecord;
 
 export function useCompanyInspections(companyId: string) {
   return useQuery({ queryKey: ["inspections", companyId], queryFn: async () => (await inspectionAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type Committee = CommitteeAPIRecord;
+
+export function useCompanyCommittees(companyId: string) {
+  return useQuery({ queryKey: ["committees", companyId], queryFn: async () => (await committeeAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export function useCommitteeMeetings(companyId: string, committeeId: string) {
+  return useQuery({ queryKey: ["committee-meetings", companyId, committeeId], queryFn: async () => (await committeeAPI.listMeetings(companyId, committeeId)).data.data, enabled: !!companyId && !!committeeId, retry: 1 });
 }

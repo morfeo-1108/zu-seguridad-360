@@ -363,6 +363,27 @@ export const inspectionAPI = {
   approve: (companyId: string, id: string) => api.put<InspectionAPIRecord>(`/api/core/companies/${companyId}/inspections/${id}/approve`, {}),
 };
 
+export interface CommitteeMember { employee_id: string; role: string; is_alternate: boolean }
+export interface CommitteeAPIRecord {
+  id: string; tenant_id: string; company_id: string;
+  type: "copasst" | "vigia"; period_start: string; period_end: string; members: CommitteeMember[];
+}
+export interface CommitteeMeetingAPIRecord {
+  id: string; committee_id: string; held_at: string; agenda: string; minutes: string;
+  attendees: string[]; decisions: { topic: string; vote_for: number; vote_against: number; result: string }[];
+  recorded_by: string;
+}
+
+export const committeeAPI = {
+  list: (companyId: string) => api.get<{ data: CommitteeAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/committees`),
+  create: (companyId: string, data: { type: string; period_start: string; period_end: string; members: CommitteeMember[] }) =>
+    api.post<CommitteeAPIRecord>(`/api/core/companies/${companyId}/committees`, data),
+  listMeetings: (companyId: string, committeeId: string) =>
+    api.get<{ data: CommitteeMeetingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/committees/${committeeId}/meetings`),
+  createMeeting: (companyId: string, committeeId: string, data: { held_at: string; agenda: string; minutes: string; attendees: string[]; decisions: unknown[] }) =>
+    api.post<CommitteeMeetingAPIRecord>(`/api/core/companies/${companyId}/committees/${committeeId}/meetings`, data),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),
