@@ -20,7 +20,12 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 @layer utilities {
   .animate-fade-in { animation: fadeIn 0.25s ease; }
   .animate-slide-up { animation: slideUp 0.3s ease; }
+  .animate-hero-in { animation: heroIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-float-slow { animation: floatSlow 14s ease-in-out infinite; }
+  .animate-float-slower { animation: floatSlow 19s ease-in-out infinite; }
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes heroIn { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes floatSlow { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-3%, 4%) scale(1.06); } }

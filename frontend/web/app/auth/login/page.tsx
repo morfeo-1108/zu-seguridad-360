@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Users, HardHat, TrendingUp, Leaf } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Users, HardHat, TrendingUp, Leaf, ArrowLeft } from "lucide-react";
 import { ZULogo } from "@/components/brand/logo";
 import { authAPI, companyAPI, type GoogleSignupPublicConfig } from "@/lib/api";
 import { useAuthStore, type CompanyContext, type User } from "@/lib/store";
@@ -74,36 +75,83 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex flex-col justify-between w-[54%] relative overflow-hidden p-14"
-        style={{ background: "linear-gradient(155deg, #12171F 0%, #1A2129 55%, #0E1218 100%)" }}>
-        <div className="absolute top-[10%] right-[8%] w-[380px] h-[380px] rounded-full" style={{ background: "radial-gradient(circle, rgba(139,195,74,0.22) 0%, transparent 60%)" }} />
+    <div className="min-h-screen flex bg-[#0B0F0C]">
+      {/* ── Panel de marca ── */}
+      <div className="hidden lg:flex flex-col justify-between w-[52%] relative overflow-hidden p-14">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0E1410] via-[#0B0F0C] to-[#0B0F0C]" />
+        <div className="absolute -left-32 top-[8%] h-[420px] w-[420px] animate-float-slow rounded-full bg-zu-lime/10 blur-[110px]" />
+        <div className="absolute -right-10 bottom-[5%] h-[360px] w-[360px] animate-float-slower rounded-full bg-emerald-500/10 blur-[110px]" />
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-        <div className="relative z-10"><ZULogo size={44} dark showText /></div>
-        <div className="relative z-10">
-          <div className="w-16 h-[3px] rounded-full mb-6" style={{ background: "linear-gradient(90deg,#8BC34A,transparent)" }} />
-          <h1 className="text-white text-[38px] font-extrabold leading-[1.1] tracking-tight mb-4">Prevenimos hoy,<br /><span style={{ color: "#8BC34A" }}>protegemos siempre.</span></h1>
-          <p className="text-[15px] leading-relaxed max-w-[420px]" style={{ color: "#9BA3AE" }}>Gestión SST con aislamiento por empresa y herramientas de apoyo para profesionales.</p>
+
+        <div className="relative z-10 flex items-center justify-between">
+          <ZULogo size={40} dark showText />
+          <Link href="/" className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-white/50 hover:text-white transition">
+            <ArrowLeft size={14} /> Volver al inicio
+          </Link>
         </div>
-        <div className="relative z-10 grid grid-cols-5 gap-3 pt-8 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          {PILLARS.map((p) => <div key={p.top} className="flex flex-col items-center text-center"><div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2" style={{ background: "rgba(139,195,74,0.12)", border: "1px solid rgba(139,195,74,0.25)" }}><p.icon size={17} style={{ color: "#8BC34A" }} /></div><div className="text-white text-[9.5px] font-bold tracking-wide leading-tight">{p.top}</div><div className="text-[8px] font-semibold tracking-wide mt-0.5" style={{ color: "#8BC34A" }}>{p.bottom}</div></div>)}
+
+        <div className="relative z-10 animate-hero-in">
+          <div className="w-16 h-[3px] rounded-full mb-6 bg-gradient-to-r from-zu-lime to-transparent" />
+          <h1 className="text-white text-[38px] font-extrabold leading-[1.1] tracking-tight mb-4">
+            Prevenimos hoy,
+            <br />
+            <span className="bg-gradient-to-r from-zu-lime to-emerald-400 bg-clip-text text-transparent">protegemos siempre.</span>
+          </h1>
+          <p className="text-[15px] leading-relaxed max-w-[420px] text-white/55">
+            Gestión SST con aislamiento real por empresa y control de acceso verificado en
+            cada solicitud, no solo en esta pantalla.
+          </p>
+        </div>
+
+        <div className="relative z-10 grid grid-cols-5 gap-3 pt-8 border-t border-white/[0.08]">
+          {PILLARS.map((p) => (
+            <div key={p.top} className="flex flex-col items-center text-center">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2 bg-zu-lime/10 border border-zu-lime/25">
+                <p.icon size={17} className="text-zu-lime" />
+              </div>
+              <div className="text-white text-[9.5px] font-bold tracking-wide leading-tight">{p.top}</div>
+              <div className="text-[8px] font-semibold tracking-wide mt-0.5 text-zu-lime">{p.bottom}</div>
+            </div>
+          ))}
         </div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-8 bg-zu-bg">
-        <div className="w-full max-w-[380px]">
-          <div className="lg:hidden mb-8 flex justify-center"><ZULogo size={48} showText /></div>
-          {(googleConfig === null || googleConfig.synthetic_pilot) && <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">{googleConfig === null ? "ENTORNO NO VERIFICADO — no ingreses datos personales hasta confirmar la configuración." : "PILOTO SINTÉTICO — no ingresar datos reales de trabajadores."}</div>}
-          <h2 className="text-[26px] font-extrabold text-zu-text1 tracking-tight mb-1">Bienvenido</h2>
-          <p className="text-[13px] text-zu-text2 mb-8">Ingresa a tu plataforma de gestión SST</p>
+
+      {/* ── Formulario ── */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-[380px] animate-fade-in">
+          <div className="lg:hidden mb-8 flex items-center justify-between">
+            <ZULogo size={44} dark showText />
+            <Link href="/" className="text-[12px] font-semibold text-white/50 hover:text-white transition">← Inicio</Link>
+          </div>
+          {(googleConfig === null || googleConfig.synthetic_pilot) && (
+            <div className="mb-4 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-[11px] font-semibold text-amber-300">
+              {googleConfig === null ? "ENTORNO NO VERIFICADO — no ingreses datos personales hasta confirmar la configuración." : "PILOTO SINTÉTICO — no ingresar datos reales de trabajadores."}
+            </div>
+          )}
+          <h2 className="text-[26px] font-extrabold text-white tracking-tight mb-1">Bienvenido de nuevo</h2>
+          <p className="text-[13px] text-white/50 mb-8">Ingresa a tu plataforma de gestión SST</p>
           <GoogleSignup config={googleConfig} />
-          {typeof window !== "undefined" && new URLSearchParams(window.location.search).has("expired") && <div role="status" className="mb-3 rounded-md bg-amber-50 p-2 text-[12px] text-amber-900">Tu sesión expiró. Vuelve a iniciar sesión.</div>}
+          {typeof window !== "undefined" && new URLSearchParams(window.location.search).has("expired") && (
+            <div role="status" className="mb-3 rounded-md bg-amber-500/[0.08] border border-amber-500/20 p-2 text-[12px] text-amber-300">Tu sesión expiró. Vuelve a iniciar sesión.</div>
+          )}
           <form onSubmit={handleLogin} className="space-y-4">
-            <div><label htmlFor="email" className="text-[12px] font-semibold text-zu-text2 mb-1.5 block">Correo electrónico</label><input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@empresa.com" className="w-full px-4 py-2.5 rounded-lg border border-zu-border bg-white text-[13px] outline-none focus:border-zu-accent transition" /></div>
-            <div><label htmlFor="password" className="text-[12px] font-semibold text-zu-text2 mb-1.5 block">Contraseña</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña" className="w-full px-4 py-2.5 rounded-lg border border-zu-border bg-white text-[13px] outline-none focus:border-zu-accent transition" /></div>
-            {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
-            <button type="submit" disabled={loading} className="w-full py-2.5 rounded-lg text-white font-semibold text-[13px] transition hover:opacity-90 disabled:opacity-60" style={{ background: "linear-gradient(135deg, #8BC34A, #6BA31A)" }}>{loading ? "Validando…" : "Ingresar a ZU 360"}</button>
+            <div>
+              <label htmlFor="email" className="text-[12px] font-semibold text-white/60 mb-1.5 block">Correo electrónico</label>
+              <input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre@empresa.com"
+                className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-white/[0.04] text-white text-[13px] outline-none focus:border-zu-lime transition placeholder:text-white/30" />
+            </div>
+            <div>
+              <label htmlFor="password" className="text-[12px] font-semibold text-white/60 mb-1.5 block">Contraseña</label>
+              <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tu contraseña"
+                className="w-full px-4 py-2.5 rounded-lg border border-white/10 bg-white/[0.04] text-white text-[13px] outline-none focus:border-zu-lime transition placeholder:text-white/30" />
+            </div>
+            {error && <div role="alert" className="rounded-md border border-red-500/25 bg-red-500/[0.08] px-3 py-2 text-[12px] text-red-300">{error}</div>}
+            <button type="submit" disabled={loading}
+              className="w-full py-2.5 rounded-lg text-[#0B0F0C] font-bold text-[13px] transition hover:bg-white disabled:opacity-60 bg-zu-lime">
+              {loading ? "Validando…" : "Ingresar a ZU 360"}
+            </button>
           </form>
-          <p className="text-[11px] text-zu-text3 text-center mt-8">ZU Seguridad Integral 360 · Colombia{googleConfig?.synthetic_pilot ? " · piloto sintético" : ""}</p>
+          <p className="text-[11px] text-white/35 text-center mt-8">ZU Seguridad Integral 360 · Colombia{googleConfig?.synthetic_pilot ? " · piloto sintético" : ""}</p>
         </div>
       </div>
     </div>

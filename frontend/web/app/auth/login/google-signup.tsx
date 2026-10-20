@@ -235,9 +235,9 @@ export default function GoogleSignup({ config }: Props) {
   return (
     <section className="mb-5">
       <div ref={containerRef} className="flex min-h-10 justify-center" aria-label="Acceder o registrarse con Google" />
-      {busy && <p className="mt-2 text-center text-[11px] text-zu-text3">Verificando cuenta…</p>}
-      {error && <div role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">{error}</div>}
-      <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-wider text-zu-text3"><span className="h-px flex-1 bg-zu-border" /><span>o continúa con tu correo</span><span className="h-px flex-1 bg-zu-border" /></div>
+      {busy && <p className="mt-2 text-center text-[11px] text-white/40">Verificando cuenta…</p>}
+      {error && <div role="alert" className="mt-3 rounded-md border border-red-500/25 bg-red-500/[0.08] px-3 py-2 text-[12px] text-red-300">{error}</div>}
+      <div className="my-5 flex items-center gap-3 text-[10px] uppercase tracking-wider text-white/35"><span className="h-px flex-1 bg-white/10" /><span>o continúa con tu correo</span><span className="h-px flex-1 bg-white/10" /></div>
     </section>
   );
 }
