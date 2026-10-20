@@ -58,19 +58,39 @@ export default function HomePage() {
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    const tryPlay = () => { el.play().catch(() => { /* retried on canplay/loadeddata below */ }); };
-    // With preload="auto" the browser can fire canplay/loadeddata before
-    // hydration attaches these listeners, since SSR already streamed the
-    // <video> tag. Those events don't fire again, so videoReady would stay
-    // false forever even though playback succeeded. Check readyState
-    // synchronously in case the event already happened.
-    if (el.readyState >= 2) setVideoReady(true);
+    // React doesn't reliably reflect the muted prop onto the element, and
+    // browsers only allow autoplay for videos that are muted as a property.
+    el.muted = true;
+    el.defaultMuted = true;
+    const tryPlay = () => {
+      if (!el.paused) return;
+      el.play().catch(() => { /* retried on the events below */ });
+    };
+    // Low-power modes (iOS/Android), Chrome's energy saver and browsers with
+    // autoplay blocked reject play() until the user interacts with the page,
+    // so retry on every gesture (only events that grant user activation —
+    // scroll doesn't) and whenever the tab becomes visible, until it plays.
+    const gestures = ["pointerdown", "pointerup", "touchend", "keydown", "click"] as const;
+    const onGesture = () => tryPlay();
+    const removeGestures = () => gestures.forEach((g) => window.removeEventListener(g, onGesture));
+    const onVisible = () => { if (document.visibilityState === "visible") tryPlay(); };
+    // With preload="auto" the browser can start playback before hydration
+    // attaches the playing listener, since SSR already streamed the <video>
+    // tag. That event doesn't fire again, so check the state synchronously.
+    if (!el.paused && el.readyState >= 2) setVideoReady(true);
     tryPlay();
     el.addEventListener("canplay", tryPlay);
     el.addEventListener("loadeddata", tryPlay);
+    el.addEventListener("playing", removeGestures);
+    document.addEventListener("visibilitychange", onVisible);
+    gestures.forEach((g) => window.addEventListener(g, onGesture, { passive: true }));
+    if (!el.paused) removeGestures();
     return () => {
       el.removeEventListener("canplay", tryPlay);
       el.removeEventListener("loadeddata", tryPlay);
+      el.removeEventListener("playing", removeGestures);
+      document.removeEventListener("visibilitychange", onVisible);
+      removeGestures();
     };
   }, []);
 
@@ -103,8 +123,9 @@ export default function HomePage() {
           playsInline
           preload="auto"
           poster="/videos/hero-poster.jpg"
-          onCanPlay={() => setVideoReady(true)}
-          onLoadedData={() => setVideoReady(true)}
+          // Only reveal the video once it actually plays; if autoplay is
+          // blocked the poster stays on top instead of a frozen first frame.
+          onPlaying={() => setVideoReady(true)}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
         >
           <source src="/videos/hero.webm" type="video/webm" />
