@@ -10,20 +10,20 @@ import { ZULogo } from "@/components/brand/logo";
 import { useAuthStore } from "@/lib/store";
 
 const CAPABILITIES = [
-  { icon: Building2, title: "Multi-empresa real", desc: "Un profesional gestiona varias empresas desde una sola cuenta; el servidor valida membresía en cada solicitud — nunca el cliente." },
-  { icon: Lock, title: "Aislamiento verificado", desc: "Cada acción queda ligada a la empresa activa del token. Cambiar de contexto exige una membresía vigente, no un parámetro editable." },
-  { icon: ScrollText, title: "PHVA con 5 marcos", desc: "ISO 45001, 9001, 14001, 31000 y Resolución 0312/2019, con ciclo Planear-Hacer-Verificar-Actuar y validación humana obligatoria." },
-  { icon: HardHat, title: "Trabajadores y EPP", desc: "Expedientes, cargos, restricciones y elementos de protección por persona, con baja lógica y trazabilidad de cambios." },
-  { icon: FileCheck2, title: "Incidentes y FURAT", desc: "Investigación, cierre con auditoría y previsualización de FURAT lista para el flujo de radicación ante ARL." },
-  { icon: GraduationCap, title: "Capacitación y vigencias", desc: "Cursos, asistencia y constancias con control de vencimiento por trabajador y por cargo." },
-  { icon: FileText, title: "Documentos y certificados", desc: "Generación con plantillas, verificación pública por folio y firma por autenticación real, no un botón decorativo." },
-  { icon: ShieldCheck, title: "RBAC de 7 roles", desc: "Casbin aplicado por recurso y verbo HTTP, con revisión humana obligatoria para todo cambio normativo." },
+  { icon: Building2, title: "Toda tu cartera, un solo lugar", desc: "Administra todas tus empresas cliente desde una sola cuenta, sin mezclar nunca la información de una con otra." },
+  { icon: Lock, title: "Control de acceso real", desc: "Cada empresa ve únicamente su propia información. El aislamiento entre clientes está en el diseño del sistema, no en la buena voluntad de quien lo configura." },
+  { icon: ScrollText, title: "PHVA sobre 5 marcos normativos", desc: "ISO 45001, 9001, 14001, 31000 y Resolución 0312 de 2019, con el ciclo Planear-Hacer-Verificar-Actuar y aprobación de un profesional en cada fase." },
+  { icon: HardHat, title: "Trabajadores y EPP bajo control", desc: "Expedientes, cargos, restricciones médicas y elementos de protección personal, con historial completo y trazable por trabajador." },
+  { icon: FileCheck2, title: "Incidentes y FURAT sin fricción", desc: "Investigación de accidentes con trazabilidad completa y el FURAT listo para radicar ante la ARL." },
+  { icon: GraduationCap, title: "Capacitación con vencimientos bajo control", desc: "Cursos, asistencia y certificados con alertas automáticas antes de que una vigencia se venza." },
+  { icon: FileText, title: "Documentos y certificados verificables", desc: "Generación con plantillas, control de versiones y verificación pública por folio — cualquiera puede confirmar que un certificado es auténtico." },
+  { icon: ShieldCheck, title: "Permisos por rol, sin excepciones", desc: "Cada acción queda ligada a un rol y una empresa específicos, con revisión humana obligatoria para cualquier cambio normativo." },
 ];
 
-const PILOT_MODULES = [
-  { icon: Sparkles, title: "IA normativa (RAG)", desc: "Consulta semántica sobre normas colombianas de SST." },
-  { icon: RadioTower, title: "Visión por dron", desc: "Inspección de EPP por zona con validación fotográfica." },
-  { icon: Fingerprint, title: "Biometría de acceso", desc: "Identificación de trabajadores con consentimiento explícito." },
+const ROADMAP_MODULES = [
+  { icon: Sparkles, title: "Asistente normativo con IA", desc: "Consulta en lenguaje natural sobre la normativa colombiana de SST, con la fuente citada en cada respuesta." },
+  { icon: RadioTower, title: "Inspección por visión artificial", desc: "Validación fotográfica del uso correcto de EPP por zona de trabajo." },
+  { icon: Fingerprint, title: "Control de acceso biométrico", desc: "Identificación de trabajadores en campo, con consentimiento explícito y trazabilidad del dato." },
 ];
 
 export default function HomePage() {
@@ -41,6 +41,23 @@ export default function HomePage() {
     const onScroll = () => setScrolled(window.scrollY > 24);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // The autoplay attribute alone is unreliable across browsers; force
+  // playback explicitly once the element exists, and retry on the
+  // visibility/canplay events in case the first attempt was blocked before
+  // enough of the file had buffered.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    const tryPlay = () => { el.play().catch(() => { /* retried on canplay/loadeddata below */ }); };
+    tryPlay();
+    el.addEventListener("canplay", tryPlay);
+    el.addEventListener("loadeddata", tryPlay);
+    return () => {
+      el.removeEventListener("canplay", tryPlay);
+      el.removeEventListener("loadeddata", tryPlay);
+    };
   }, []);
 
   if (isAuthenticated) return null;
@@ -70,9 +87,10 @@ export default function HomePage() {
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/videos/hero-poster.jpg"
           onCanPlay={() => setVideoReady(true)}
+          onLoadedData={() => setVideoReady(true)}
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
         >
           <source src="/videos/hero.mp4" type="video/mp4" />
@@ -129,14 +147,14 @@ export default function HomePage() {
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B0F0C] to-transparent" />
       </section>
 
-      {/* ── Capacidades reales ── */}
+      {/* ── Capacidades ── */}
       <section id="capacidades" className="relative border-t border-white/[0.06] bg-[#0B0F0C] py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="mb-14 max-w-2xl">
-            <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Lo que ya funciona</div>
-            <h2 className="text-[32px] font-extrabold tracking-tight sm:text-[40px]">No es una maqueta. Es lo que corre hoy.</h2>
+            <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">La plataforma</div>
+            <h2 className="text-[32px] font-extrabold tracking-tight sm:text-[40px]">Construida sobre el rigor que exige la ley, no sobre una lista de funciones.</h2>
             <p className="mt-3 text-[15px] text-white/55">
-              Cada capacidad de esta sección fue verificada contra una base de datos real en esta misma sesión de auditoría — no es texto de marketing sin respaldo.
+              Cada módulo nace de un requisito normativo real del sistema de gestión de SST en Colombia — pensado para el día a día de quien administra varias empresas a la vez.
             </p>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -153,23 +171,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Módulos en piloto (honesto, no sobre-promete) ── */}
+      {/* ── Hoja de ruta ── */}
       <section id="piloto" className="relative border-t border-white/[0.06] bg-[#0D1210] py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="mb-14 flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-xl">
-              <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-amber-400">En piloto sintético</div>
-              <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">Avanzado, pero sin maquillar el estado real.</h2>
+              <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-amber-400">En desarrollo</div>
+              <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">La siguiente frontera: inteligencia artificial aplicada a la prevención.</h2>
               <p className="mt-3 text-[15px] text-white/55">
-                Estos módulos existen en código y están deliberadamente limitados a datos
-                sintéticos hasta completar la revisión de privacidad y consentimiento que
-                exige procesar datos reales de salud y biometría.
+                Estamos construyendo estos módulos con el mismo estándar de rigor normativo
+                y protección de datos del resto de la plataforma, antes de ponerlos en manos
+                de cada profesional.
               </p>
             </div>
             <Boxes size={48} className="shrink-0 text-white/15" />
           </div>
           <div className="grid gap-5 sm:grid-cols-3">
-            {PILOT_MODULES.map((m) => (
+            {ROADMAP_MODULES.map((m) => (
               <div key={m.title} className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-6">
                 <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
                   <m.icon size={20} />
@@ -186,10 +204,10 @@ export default function HomePage() {
       <section className="relative border-t border-white/[0.06] bg-[#0B0F0C] py-24">
         <div className="mx-auto max-w-4xl px-6 text-center lg:px-10">
           <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[38px]">
-            Entra con tu cuenta de profesional SST.
+            Lleva la gestión de tu cartera a otro nivel.
           </h2>
           <p className="mx-auto mt-4 max-w-md text-[15px] text-white/55">
-            Autenticación real contra Core, sin atajos ni datos simulados fuera del piloto.
+            Ingresa con tu cuenta de profesional SST y descubre todo lo que ZU 360 puede hacer por tus empresas.
           </p>
           <Link
             href="/auth/login"
