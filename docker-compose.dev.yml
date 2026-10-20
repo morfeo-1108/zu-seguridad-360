@@ -199,9 +199,22 @@ services:
       - "127.0.0.1:4001:4001"
     env_file: ./services/core/.env.dev
     environment:
-      ENV: development
+      # Fase de pruebas técnicas con SST reales vía Google, previa al
+      # lanzamiento público (sprint "piloto con profesionales reales",
+      # 2026-10-20) — PILOT_SYNTHETIC_ENABLED y GOOGLE_SIGNUP_ENABLED
+      # son mutuamente excluyentes por diseño (ValidateSyntheticPilot),
+      # así que esto sale del modo sintético. Los módulos de alto riesgo
+      # (IA, biometría, exámenes médicos, drones) siguen bloqueados por
+      # sus propios flags, independientes de este cambio.
+      ENV: staging
       AUTO_MIGRATE: "true"
-      PILOT_SYNTHETIC_ENABLED: "true"
+      PILOT_SYNTHETIC_ENABLED: "false"
+      GOOGLE_SIGNUP_ENABLED: "true"
+      GOOGLE_CLIENT_ID: "1001223272587-0to05689t2m98rdtepul9fjiuv339ovo.apps.googleusercontent.com"
+      GOOGLE_SIGNUP_TERMS_URL: "https://www.zuseguridad360.com/legal/terminos"
+      GOOGLE_SIGNUP_PRIVACY_URL: "https://www.zuseguridad360.com/legal/privacidad"
+      GOOGLE_SIGNUP_TERMS_VERSION: "1.0-piloto"
+      GOOGLE_SIGNUP_PRIVACY_VERSION: "1.0-piloto"
       DB_HOST: postgres
       DB_NAME: zu_core_synthetic
     depends_on:

@@ -64,9 +64,11 @@ export function Header() {
           {error && <p role="alert" className="px-3 py-2 text-[11px] text-red-700">{error}</p>}
         </div>}
       </div>
-      <div className="hidden items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10.5px] font-semibold text-amber-800 sm:flex">
-        <ShieldAlert size={11} /> Piloto sintético
-      </div>
+      {user?.isSynthetic && (
+        <div className="hidden items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10.5px] font-semibold text-amber-800 sm:flex">
+          <ShieldAlert size={11} /> Piloto sintético
+        </div>
+      )}
       <div className="flex-1" />
       <div className="flex items-center gap-3">
         <span className="hidden md:inline text-[11.5px] font-medium text-zu-text2">{user ? `${user.firstName} ${user.lastName}` : "Sesión verificada"}</span>

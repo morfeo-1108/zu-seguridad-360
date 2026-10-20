@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const employees = employeeResponse?.data || [];
   const syntheticIncidents = incidents || [];
   const today = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  const isSynthetic = Boolean(user?.isSynthetic || activeCompany?.is_synthetic);
 
   return (
     <DashboardShell>
@@ -46,9 +47,11 @@ export default function DashboardPage() {
           <Link href="/dashboard/portfolio" className="inline-flex items-center gap-1.5 rounded-lg border border-zu-border bg-white px-3.5 py-2 text-[12px] font-bold text-zu-text1 shadow-zu transition-colors hover:border-zu-accent hover:text-zu-accent">
             <Briefcase size={13} /> Ver portafolio completo <ArrowRight size={13} />
           </Link>
-          <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-800">
-            <FlaskConical size={12} /> Datos sintéticos de demostración
-          </div>
+          {isSynthetic && (
+            <div className="flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-800">
+              <FlaskConical size={12} /> Datos sintéticos de demostración
+            </div>
+          )}
         </div>
       </div>
 
@@ -56,7 +59,7 @@ export default function DashboardPage() {
         <KPICard label="Empresas en cartera" value={companiesLoading ? "…" : companies?.length ?? 0} icon={Building2} sub="autorizadas por membership"/>
         <KPICard label="Trabajadores registrados" value={employeesLoading ? "…" : employees.length} icon={Users} sub={activeCompany?.name || "selecciona una empresa"}/>
         <KPICard label="Incidentes registrados" value={incidentsLoading ? "…" : syntheticIncidents.length} icon={Activity} sub="empresa activa"/>
-        <KPICard label="Estado del entorno" value="Piloto" icon={ShieldCheck} valueColor="var(--amber)" sub="aislado de datos reales"/>
+        <KPICard label="Estado del entorno" value={isSynthetic ? "Piloto" : "Activo"} icon={ShieldCheck} valueColor={isSynthetic ? "var(--amber)" : "var(--accent)"} sub={isSynthetic ? "aislado de datos reales" : "cuenta en producción"}/>
       </div>
       {(companiesError || employeesError || incidentsError) && <Card className="mb-4 border-red-200 bg-red-50 p-3 text-xs text-red-800">Una o más consultas a Core no están disponibles. Los conteos marcados “—” no se sustituyen por datos demo.</Card>}
 
