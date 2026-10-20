@@ -1,11 +1,11 @@
 "use client";
 import { FormEvent, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ClipboardCheck, Eye, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Eye, FileStack, Plus, Trash2, X } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Badge, Button, Card, Empty, PageHeader, Spinner, Th, Td, Tr } from "@/components/ui";
-import { inspectionAPI, type ChecklistItem } from "@/lib/api";
-import { useCompanyInspections, type Inspection } from "@/lib/hooks";
+import { checklistTemplateAPI, inspectionAPI, type ChecklistItem } from "@/lib/api";
+import { useChecklistTemplates, useCompanyInspections, type ChecklistTemplate, type Inspection } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
 
@@ -17,13 +17,22 @@ export default function InspectionsPage() {
   const activeCompany = useAuthStore((state) => state.activeCompany);
   const companyId = activeCompany?.id || "";
   const { data: inspections, isLoading, isError } = useCompanyInspections(companyId);
+  const { data: templates } = useChecklistTemplates(companyId);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(freshForm);
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Inspection | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["inspections", companyId] });
+  const invalidateTemplates = () => queryClient.invalidateQueries({ queryKey: ["checklist-templates", companyId] });
+
+  const applyTemplate = (template: ChecklistTemplate) => {
+    setForm((prev) => ({ ...prev, checklist: template.items.map((item) => ({ code: item.code, description: item.description, compliant: true, notes: "" })) }));
+  };
 
   const updateRow = (index: number, patch: Partial<ChecklistItem>) => {
     setForm((prev) => ({ ...prev, checklist: prev.checklist.map((row, i) => (i === index ? { ...row, ...patch } : row)) }));
@@ -35,9 +44,19 @@ export default function InspectionsPage() {
     setBusy(true); setFormError("");
     try {
       await inspectionAPI.create(companyId, form);
-      await invalidate(); setShowForm(false); setForm(freshForm());
+      if (saveAsTemplate && templateName.trim()) {
+        try {
+          await checklistTemplateAPI.create(companyId, { name: templateName.trim(), category: form.area, items: form.checklist.map((row) => ({ code: row.code, description: row.description })) });
+          await invalidateTemplates();
+        } catch { /* la inspección ya quedó registrada; la plantilla es un extra opcional */ }
+      }
+      await invalidate(); setShowForm(false); setForm(freshForm()); setSaveAsTemplate(false); setTemplateName("");
     } catch { setFormError("No se pudo registrar la inspección. Verifica que cada ítem tenga código y descripción."); }
     finally { setBusy(false); }
+  };
+
+  const deleteTemplate = async (id: string) => {
+    try { await checklistTemplateAPI.remove(companyId, id); await invalidateTemplates(); } catch { /* el botón permanece para reintentar */ }
   };
 
   const approve = async (inspection: Inspection) => {
@@ -52,7 +71,7 @@ export default function InspectionsPage() {
       <PageHeader
         title="Inspecciones"
         description="Checklist estructurado; el plan de acción se genera automáticamente de los ítems no conformes."
-        action={<Button onClick={() => { setForm(freshForm()); setFormError(""); setShowForm(true); }} disabled={!companyId}><Plus size={13} /> Nueva inspección</Button>}
+        action={<div className="flex gap-2"><Button variant="secondary" onClick={() => setShowTemplates(true)} disabled={!companyId}><FileStack size={13} /> Plantillas</Button><Button onClick={() => { setForm(freshForm()); setFormError(""); setShowForm(true); }} disabled={!companyId}><Plus size={13} /> Nueva inspección</Button></div>}
       />
 
       {!companyId ? <Empty icon={AlertTriangle} title="Sin empresa activa" description="Selecciona una empresa con membership desde el encabezado." /> : isLoading ? <Spinner size={24} /> : isError ? (
@@ -91,6 +110,14 @@ export default function InspectionsPage() {
                 <label className="block text-xs">Área<input required value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} className="mt-1 w-full rounded border border-zu-border px-3 py-2" /></label>
                 <label className="block text-xs">Fecha<input required type="date" value={form.performed_at} onChange={(e) => setForm({ ...form, performed_at: e.target.value })} className="mt-1 w-full rounded border border-zu-border px-3 py-2" /></label>
               </div>
+              {!!templates?.length && (
+                <label className="block text-xs">Aplicar plantilla
+                  <select defaultValue="" onChange={(e) => { const tpl = templates.find((t) => t.id === e.target.value); if (tpl) applyTemplate(tpl); }} className="mt-1 w-full rounded border border-zu-border px-3 py-2">
+                    <option value="" disabled>Elegir plantilla guardada…</option>
+                    {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.items.length} ítems)</option>)}
+                  </select>
+                </label>
+              )}
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <span className="text-xs font-semibold text-zu-text1">Checklist</span>
@@ -110,9 +137,37 @@ export default function InspectionsPage() {
                 </div>
               </div>
               <p className="text-[10px] text-zu-text3">El % de cumplimiento y el plan de acción (uno por ítem no conforme) los calcula el servidor.</p>
+              <div className="rounded-md border border-zu-border p-2">
+                <label className="flex items-center gap-2 text-[11px] font-semibold text-zu-text2"><input type="checkbox" checked={saveAsTemplate} onChange={(e) => setSaveAsTemplate(e.target.checked)} /> Guardar este checklist como plantilla reutilizable</label>
+                {saveAsTemplate && <input required placeholder="Nombre de la plantilla" value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="mt-2 w-full rounded border border-zu-border px-2 py-1.5 text-[11px]" />}
+              </div>
               {formError && <p role="alert" className="text-xs text-red-700">{formError}</p>}
               <div className="flex justify-end gap-2 pt-1"><Button variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? "Guardando…" : "Registrar inspección"}</Button></div>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {showTemplates && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-lg max-h-[85vh] overflow-y-auto p-5">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Plantillas de checklist</h2><button onClick={() => setShowTemplates(false)} aria-label="Cerrar"><X size={18} /></button></div>
+            <p className="mb-3 text-[11px] text-zu-text3">Se crean marcando la casilla al registrar una inspección, o aplican directamente al crear una nueva.</p>
+            {!templates?.length ? (
+              <Empty icon={FileStack} title="Sin plantillas guardadas" description="Registra una inspección y marca 'Guardar como plantilla' para crear la primera." />
+            ) : (
+              <div className="space-y-2">
+                {templates.map((t) => (
+                  <div key={t.id} className="rounded-md border border-zu-border p-2.5">
+                    <div className="flex items-center justify-between">
+                      <div><p className="text-xs font-semibold">{t.name}</p><p className="text-[10px] text-zu-text3">{t.category || "sin categoría"} · {t.items.length} ítems</p></div>
+                      <button onClick={() => void deleteTemplate(t.id)} className="text-red-500"><Trash2 size={14} /></button>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap gap-1">{t.items.map((item) => <Badge key={item.code} variant="gray">{item.code}</Badge>)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       )}

@@ -76,6 +76,7 @@ func RunAllMigrations(db *gorm.DB) error {
 		&model.Committee{},
 		&model.CommitteeMeeting{},
 		&model.LegalRequirement{},
+		&model.ChecklistTemplate{},
 		&model.ConsentRecord{},
 		&model.Project{},
 		&model.Zone{},

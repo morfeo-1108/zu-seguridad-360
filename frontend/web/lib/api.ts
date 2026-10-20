@@ -364,6 +364,25 @@ export const inspectionAPI = {
   approve: (companyId: string, id: string) => api.put<InspectionAPIRecord>(`/api/core/companies/${companyId}/inspections/${id}/approve`, {}),
 };
 
+export interface ChecklistTemplateItem { code: string; description: string }
+export interface ChecklistTemplateAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  name: string;
+  category: string;
+  items: ChecklistTemplateItem[];
+  created_by: string;
+  created_at: string;
+}
+
+export const checklistTemplateAPI = {
+  list: (companyId: string) => api.get<{ data: ChecklistTemplateAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/checklist-templates`),
+  create: (companyId: string, data: { name: string; category: string; items: ChecklistTemplateItem[] }) =>
+    api.post<ChecklistTemplateAPIRecord>(`/api/core/companies/${companyId}/checklist-templates`, data),
+  remove: (companyId: string, id: string) => api.delete(`/api/core/companies/${companyId}/checklist-templates/${id}`),
+};
+
 export interface CommitteeMember { employee_id: string; role: string; is_alternate: boolean }
 export interface CommitteeAPIRecord {
   id: string; tenant_id: string; company_id: string;

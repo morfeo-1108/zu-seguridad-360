@@ -80,6 +80,7 @@ func main() {
 	legalSvc := service.NewLegalRequirementService(db)
 	alertSvc := service.NewAlertService(medicalSvc, eppSvc, riskSvc, legalSvc)
 	portfolioSvc := service.NewPortfolioService(db, companyRepo)
+	checklistTemplateSvc := service.NewChecklistTemplateService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -99,6 +100,7 @@ func main() {
 	legalH := handler.NewLegalRequirementHandler(legalSvc)
 	alertH := handler.NewAlertHandler(alertSvc)
 	portfolioH := handler.NewPortfolioHandler(portfolioSvc)
+	checklistTemplateH := handler.NewChecklistTemplateHandler(checklistTemplateSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -251,6 +253,12 @@ func main() {
 	insp.Post("/", inspectionH.Create)
 	insp.Get("/:id", inspectionH.GetByID)
 	insp.Put("/:id/approve", inspectionH.Approve)
+
+	checklistTpl := app.Group("/v1/companies/:companyId/checklist-templates", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "inspections"))
+	checklistTpl.Get("/", checklistTemplateH.List)
+	checklistTpl.Post("/", checklistTemplateH.Create)
+	checklistTpl.Get("/:id", checklistTemplateH.GetByID)
+	checklistTpl.Delete("/:id", checklistTemplateH.Delete)
 
 	// Matriz de riesgos GTC-45 / IPEVR
 	risk := app.Group("/v1/companies/:companyId/risks", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "risks"))

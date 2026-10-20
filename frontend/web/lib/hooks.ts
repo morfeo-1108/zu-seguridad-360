@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { alertAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, portfolioAPI, riskAPI, trainingAPI, type AlertAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type PortfolioCompanyRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, checklistTemplateAPI, committeeAPI, companyAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, portfolioAPI, riskAPI, trainingAPI, type AlertAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type PortfolioCompanyRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -53,6 +53,12 @@ export type Inspection = InspectionAPIRecord;
 
 export function useCompanyInspections(companyId: string) {
   return useQuery({ queryKey: ["inspections", companyId], queryFn: async () => (await inspectionAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type ChecklistTemplate = ChecklistTemplateAPIRecord;
+
+export function useChecklistTemplates(companyId: string) {
+  return useQuery({ queryKey: ["checklist-templates", companyId], queryFn: async () => (await checklistTemplateAPI.list(companyId)).data.data, enabled: !!companyId, retry: 1 });
 }
 
 export type Committee = CommitteeAPIRecord;
