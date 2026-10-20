@@ -13,7 +13,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <span className="hidden sm:inline font-normal">· empresas y registros marcados como datos de prueba</span>
         </div>
         <Header />
-        <main className="flex-1 overflow-auto p-5 animate-fade-in">{children}</main>
+        <main className="flex-1 overflow-auto p-6 animate-fade-in">{children}</main>
       </div>
     </div>
   );
