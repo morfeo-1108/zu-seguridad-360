@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { companyAPI, employeeAPI, incidentAPI, riskAPI, trainingAPI, type CompanyAPIRecord, type EmployeeAPIRecord, type IncidentAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
+import { companyAPI, employeeAPI, eppAPI, incidentAPI, riskAPI, trainingAPI, type CompanyAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type RiskEntryAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -39,3 +39,13 @@ export function useCompanyRisks(companyId: string) {
 export function useRiskHeatmap(companyId: string) {
   return useQuery({ queryKey: ["risks-heatmap", companyId], queryFn: async () => (await riskAPI.heatmap(companyId)).data, enabled: !!companyId, retry: 1 });
 }
+
+export function useEPPItems(companyId: string) {
+  return useQuery({ queryKey: ["epp-items", companyId], queryFn: async () => (await eppAPI.listItems(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export function useEPPExpiring(companyId: string) {
+  return useQuery({ queryKey: ["epp-expiring", companyId], queryFn: async () => (await eppAPI.listExpiring(companyId)).data.data, enabled: !!companyId, retry: 1 });
+}
+
+export type EPPItem = EPPItemAPIRecord;

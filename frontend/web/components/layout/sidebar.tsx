@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ZULogo } from "@/components/brand/logo";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { LayoutDashboard, Building2, Users, GraduationCap, Stethoscope, ShieldAlert, AlertTriangle, FileText, Cpu, Plane, Inbox, Bot, DollarSign, Settings, ChevronRight, Layers, Network, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Building2, Users, GraduationCap, Stethoscope, ShieldAlert, AlertTriangle, FileText, Cpu, Plane, Inbox, Bot, DollarSign, Settings, ChevronRight, Layers, Network, RefreshCw, HardHat } from "lucide-react";
 
 const NAV_GROUPS = [
   { label: null, items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] },
@@ -18,6 +18,7 @@ const NAV_GROUPS = [
     { href: "/dashboard/training", label: "Capacitaciones", icon: GraduationCap },
     { href: "/dashboard/medical", label: "Exámenes Médicos", icon: Stethoscope },
     { href: "/dashboard/risks", label: "Riesgos GTC 45", icon: ShieldAlert },
+    { href: "/dashboard/epp", label: "EPP", icon: HardHat },
     { href: "/dashboard/incidents", label: "Incidentes & ATEL", icon: AlertTriangle },
     { href: "/dashboard/documents", label: "Documental", icon: FileText },
   ]},

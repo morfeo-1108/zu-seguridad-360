@@ -296,6 +296,45 @@ export const riskAPI = {
   create: (companyId: string, data: CreateRiskPayload) => api.post<RiskEntryAPIRecord>(`/api/core/companies/${companyId}/risks`, data),
 };
 
+export interface EPPItemAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  name: string;
+  category: string;
+  lifespan_days: number;
+}
+
+export interface EPPDeliveryAPIRecord {
+  id: string;
+  tenant_id: string;
+  company_id: string;
+  employee_id: string;
+  item_id: string;
+  quantity: number;
+  condition: string;
+  delivered_at: string;
+  expires_at: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  returned_at: string | null;
+  return_reason: string;
+  item?: EPPItemAPIRecord;
+}
+
+export const eppAPI = {
+  listItems: (companyId: string) => api.get<{ data: EPPItemAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/epp/items`),
+  createItem: (companyId: string, data: { name: string; category: string; lifespan_days: number }) =>
+    api.post<EPPItemAPIRecord>(`/api/core/companies/${companyId}/epp/items`, data),
+  listExpiring: (companyId: string) => api.get<{ data: EPPDeliveryAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/epp/deliveries/expiring`),
+  listByEmployee: (companyId: string, employeeId: string) =>
+    api.get<{ data: EPPDeliveryAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/epp/deliveries/employee/${employeeId}`),
+  createDelivery: (companyId: string, data: { employee_id: string; item_id: string; quantity: number; condition?: string }) =>
+    api.post<EPPDeliveryAPIRecord>(`/api/core/companies/${companyId}/epp/deliveries`, data),
+  returnDelivery: (companyId: string, deliveryId: string, reason: string) =>
+    api.put<EPPDeliveryAPIRecord>(`/api/core/companies/${companyId}/epp/deliveries/${deliveryId}/return`, { reason }),
+};
+
 export const trainingAPI = {
   list: (companyId: string) => api.get<{ data: TrainingAPIRecord[]; total: number }>(`/api/core/companies/${companyId}/trainings`),
   create: (companyId: string, data: CreateTrainingPayload) => api.post<TrainingAPIRecord>(`/api/core/companies/${companyId}/trainings`, data),
