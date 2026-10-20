@@ -73,6 +73,7 @@ func main() {
 	watchSvc := service.NewRegulatoryWatchService(db)
 	medicalSvc := service.NewMedicalExamService(db, amqp, cfg.SyntheticPilotEnabled)
 	evidenceSvc := service.NewEvidenceService(db)
+	eppSvc := service.NewEPPService(db)
 
 	// ── Handlers ────────────────────────────────────────────
 	healthH := handler.NewHealthHandler(db, redis)
@@ -85,6 +86,7 @@ func main() {
 	medicalH := handler.NewMedicalHandler(medicalSvc)
 	evidenceH := handler.NewEvidenceHandler(evidenceSvc)
 	riskH := handler.NewRiskHandler(riskSvc)
+	eppH := handler.NewEPPHandler(eppSvc)
 	metaH := handler.NewSystemMetaHandler()
 
 	// ── Fiber App ───────────────────────────────────────────
@@ -189,6 +191,15 @@ func main() {
 	ev.Get("/employees/:employeeId", evidenceH.EmployeeTimeline)
 	ev.Get("/employees/:employeeId/compliance-proof", evidenceH.ComplianceProof)
 	ev.Get("/projects/:projectId", evidenceH.ProjectEvidence)
+
+	// EPP: catálogo por empresa y entregas por trabajador
+	epp := app.Group("/v1/companies/:companyId/epp", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "epp"))
+	epp.Get("/items", eppH.ListItems)
+	epp.Post("/items", eppH.CreateItem)
+	epp.Post("/deliveries", eppH.CreateDelivery)
+	epp.Get("/deliveries/expiring", eppH.ListExpiring)
+	epp.Get("/deliveries/employee/:employeeId", eppH.ListByEmployee)
+	epp.Put("/deliveries/:id/return", eppH.Return)
 
 	// Matriz de riesgos GTC-45 / IPEVR
 	risk := app.Group("/v1/companies/:companyId/risks", jwt, middleware.CompanyScope("companyId"), middleware.CompanyMembershipScope("companyId", userRepo), middleware.Authorize(enforcer, "risks"))
