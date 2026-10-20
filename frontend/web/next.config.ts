@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
         destination: "https://www.zuseguridad360.com/:path*",
         permanent: true,
       },
+      // The bare domain goes through the same tunnel; canonicalize it to www
+      // (the only origin Core and the Google OAuth client allow).
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "zuseguridad360.com" }],
+        destination: "https://www.zuseguridad360.com/:path*",
+        permanent: true,
+      },
     ];
   },
   async rewrites() {
