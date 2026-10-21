@@ -80,8 +80,10 @@ type GoogleInitialCompany struct {
 }
 
 type GoogleSignupCompletion struct {
-	RegistrationToken         string
-	Company                   GoogleInitialCompany
+	RegistrationToken string
+	// Company is optional: the professional can create the account first and
+	// register companies later from the dashboard (POST /v1/companies).
+	Company                   *GoogleInitialCompany
 	TermsAccepted             bool
 	PrivacyNoticeAcknowledged bool
 }
@@ -203,8 +205,17 @@ func (s *AuthService) BeginGoogleAuthentication(ctx context.Context, rawIDToken,
 		companyID := companyIDForUser(user)
 		if companyID == "" {
 			companies, listErr := s.userRepo.ListMemberCompanies(ctx, user.ID, user.TenantID)
-			if listErr != nil || len(companies) == 0 {
-				return nil, ErrAccountInactive
+			if listErr != nil {
+				return nil, fmt.Errorf("company membership lookup unavailable")
+			}
+			if len(companies) == 0 {
+				// Account created without a company yet: issue a tenant-only
+				// session so the professional can register the first one.
+				access, refresh, sessionErr := s.issueGoogleSession(ctx, user)
+				if sessionErr != nil {
+					return nil, sessionErr
+				}
+				return &GoogleAuthResult{AccessToken: access, RefreshToken: refresh}, nil
 			}
 			companyID = companies[0].ID.String()
 		}
@@ -251,7 +262,8 @@ func (s *AuthService) BeginGoogleAuthentication(ctx context.Context, rawIDToken,
 }
 
 // CompleteGoogleSignup consumes the one-time registration ticket and provisions
-// the user, isolated tenant, initial company and membership in one DB transaction.
+// the user and isolated tenant — plus, when one is given, the initial company
+// and membership — in one DB transaction.
 func (s *AuthService) CompleteGoogleSignup(ctx context.Context, input GoogleSignupCompletion) (string, string, error) {
 	if err := s.ensureGoogleSignupEnabled(); err != nil {
 		return "", "", err
@@ -262,9 +274,13 @@ func (s *AuthService) CompleteGoogleSignup(ctx context.Context, input GoogleSign
 	if strings.TrimSpace(s.cfg.GoogleSignupTermsVersion) == "" || strings.TrimSpace(s.cfg.GoogleSignupPrivacyVersion) == "" {
 		return "", "", ErrGoogleSignupDisabled
 	}
-	company, err := validateGoogleInitialCompany(input.Company)
-	if err != nil {
-		return "", "", err
+	var company *model.Company
+	if input.Company != nil {
+		validated, err := validateGoogleInitialCompany(*input.Company)
+		if err != nil {
+			return "", "", err
+		}
+		company = validated
 	}
 	if strings.TrimSpace(input.RegistrationToken) == "" || len(input.RegistrationToken) > 128 {
 		return "", "", ErrGoogleRegistrationExpired
@@ -283,12 +299,14 @@ func (s *AuthService) CompleteGoogleSignup(ctx context.Context, input GoogleSign
 	} else if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
 		return "", "", fmt.Errorf("Google account lookup unavailable")
 	}
-	companyNITExists, err := s.userRepo.CompanyNITExists(ctx, company.NIT)
-	if err != nil {
-		return "", "", fmt.Errorf("company identifier lookup unavailable")
-	}
-	if companyNITExists {
-		return "", "", ErrGoogleAccountConflict
+	if company != nil {
+		companyNITExists, err := s.userRepo.CompanyNITExists(ctx, company.NIT)
+		if err != nil {
+			return "", "", fmt.Errorf("company identifier lookup unavailable")
+		}
+		if companyNITExists {
+			return "", "", ErrGoogleAccountConflict
+		}
 	}
 	consumedIdentity, err := s.redis.GetDel(ctx, registrationKey).Result()
 	if err != nil || consumedIdentity != encodedIdentity {
@@ -306,7 +324,9 @@ func (s *AuthService) CompleteGoogleSignup(ctx context.Context, input GoogleSign
 		PrivacyNoticeVersion: s.cfg.GoogleSignupPrivacyVersion,
 		// PasswordHash remains an empty, non-authenticating value for Google-only accounts.
 	}
-	company.TenantID = user.TenantID
+	if company != nil {
+		company.TenantID = user.TenantID
+	}
 	if err := s.userRepo.CreateGoogleRegistration(ctx, user, company); err != nil {
 		if errors.Is(err, repository.ErrIdentityConflict) {
 			return "", "", ErrGoogleAccountConflict

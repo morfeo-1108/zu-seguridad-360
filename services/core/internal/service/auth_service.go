@@ -128,6 +128,13 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (st
 	if !user.IsActive || user.TenantID.String() != claims.TenantID {
 		return "", ErrTokenInvalid
 	}
+	if claims.CompanyID == "" {
+		// Tenant-only session (account without companies yet): never widen it
+		// to a company scope here; that requires an explicit switch-company.
+		tenantOnly := *user
+		tenantOnly.CompanyID = nil
+		return s.generateAccessToken(&tenantOnly)
+	}
 	companyID, err := uuid.Parse(claims.CompanyID)
 	if err != nil || companyID == uuid.Nil {
 		return "", ErrTokenInvalid

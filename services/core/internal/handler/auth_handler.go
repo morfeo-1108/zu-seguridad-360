@@ -110,7 +110,7 @@ func (h *AuthHandler) GoogleComplete(c *fiber.Ctx) error {
 	}
 	var req struct {
 		RegistrationToken         string                       `json:"registration_token"`
-		Company                   service.GoogleInitialCompany `json:"company"`
+		Company                   *service.GoogleInitialCompany `json:"company,omitempty"`
 		TermsAccepted             bool                         `json:"terms_accepted"`
 		PrivacyNoticeAcknowledged bool                         `json:"privacy_notice_acknowledged"`
 	}

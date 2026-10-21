@@ -114,31 +114,35 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 
 // CreateGoogleRegistration atomically provisions the first isolated workspace.
 // It never creates demo data and deliberately leaves legal risk classification blank.
+// company may be nil: the account is created alone and companies are added later.
 func (r *UserRepository) CreateGoogleRegistration(ctx context.Context, user *model.User, company *model.Company) error {
 	if r.syntheticPilot {
 		return errors.New("real Google registrations are disabled in synthetic mode")
 	}
-	if user == nil || company == nil || user.TenantID == uuid.Nil {
+	if user == nil || user.TenantID == uuid.Nil {
 		return errors.New("invalid Google registration payload")
 	}
 	if user.ID == uuid.Nil {
 		user.ID = uuid.New()
 	}
-	if company.ID == uuid.Nil {
-		company.ID = uuid.New()
-	}
-	company.TenantID = user.TenantID
-	company.IsSynthetic = false
-	company.RiskClass = ""
-	company.RiskScore = 0
-	company.EmployeeCount = 0
-	company.PlanID = nil
-	company.Status = model.CompanyStatusActive
-	company.OnboardingStep = 1
-	company.OnboardingDone = false
-	user.CompanyID = &company.ID
+	user.CompanyID = nil
 	user.IsSynthetic = false
 	user.IsActive = true
+	if company != nil {
+		if company.ID == uuid.Nil {
+			company.ID = uuid.New()
+		}
+		company.TenantID = user.TenantID
+		company.IsSynthetic = false
+		company.RiskClass = ""
+		company.RiskScore = 0
+		company.EmployeeCount = 0
+		company.PlanID = nil
+		company.Status = model.CompanyStatusActive
+		company.OnboardingStep = 1
+		company.OnboardingDone = false
+		user.CompanyID = &company.ID
+	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
@@ -146,6 +150,9 @@ func (r *UserRepository) CreateGoogleRegistration(ctx context.Context, user *mod
 				return ErrIdentityConflict
 			}
 			return err
+		}
+		if company == nil {
+			return nil
 		}
 		if err := tx.Create(company).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {

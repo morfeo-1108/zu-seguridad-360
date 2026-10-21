@@ -41,6 +41,9 @@ const IVARate = 0.19
 var ErrCompanyQuotaExceeded = errors.New("adding this company would exceed the plan's company quota")
 var ErrNoActiveSubscription = errors.New("tenant has no active subscription")
 
+// firstCompanyWithoutPlan is the company quota of a tenant that has not picked a plan yet.
+const firstCompanyWithoutPlan = 1
+
 type BillingService struct {
 	db    *gorm.DB
 	wompi *wompi.Client
@@ -142,19 +145,25 @@ func (s *BillingService) CreateSubscription(ctx context.Context, tenantID uuid.U
 // "plan buys you N companies" model — nothing in Core's own company_service
 // currently checks it.
 func (s *BillingService) CanAddCompany(ctx context.Context, tenantID uuid.UUID) (allowed bool, currentCount, maxCompanies int, err error) {
-	var sub model.Subscription
-	if err := s.db.WithContext(ctx).Where("tenant_id = ? AND status = ?", tenantID, model.SubStatusActive).First(&sub).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, 0, 0, ErrNoActiveSubscription
-		}
-		return false, 0, 0, err
-	}
-
 	var count int64
 	if err := s.db.WithContext(ctx).Table("companies").
 		Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
 		Count(&count).Error; err != nil {
-		return false, 0, sub.MaxCompanies, err
+		return false, 0, 0, err
+	}
+
+	var sub model.Subscription
+	if err := s.db.WithContext(ctx).Where("tenant_id = ? AND status = ?", tenantID, model.SubStatusActive).First(&sub).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// The first company never needed a plan (signup used to create it
+			// directly); now that it is registered from the dashboard after
+			// signup, keep that: one company without a plan, more need one.
+			if count == 0 {
+				return true, 0, firstCompanyWithoutPlan, nil
+			}
+			return false, int(count), 0, ErrNoActiveSubscription
+		}
+		return false, 0, 0, err
 	}
 
 	return int(count) < sub.MaxCompanies, int(count), sub.MaxCompanies, nil
