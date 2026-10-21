@@ -5,6 +5,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Card, Badge, KPICard, Spinner } from "@/components/ui";
 import { useAlerts, useCompanies, useEmployees, useCompanyIncidents } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/store";
+import { REAL_MODULES } from "@/lib/modules";
 import { formatDateTime } from "@/lib/utils";
 
 const alertCategoryLabel: Record<string, string> = {
@@ -23,13 +24,15 @@ export default function DashboardPage() {
   const activeCompany = useAuthStore((state) => state.activeCompany);
   const { data: companies, isLoading: companiesLoading, isError: companiesError } = useCompanies();
   const companyId = activeCompany?.id || "";
-  const { data: employeeResponse, isLoading: employeesLoading, isError: employeesError } = useEmployees(companyId);
-  const { data: incidents, isLoading: incidentsLoading, isError: incidentsError } = useCompanyIncidents(companyId);
+  const isSynthetic = Boolean(user?.isSynthetic || activeCompany?.is_synthetic);
+  // Worker and incident records are disabled for real accounts (legal gate).
+  const workerDataId = isSynthetic ? companyId : "";
+  const { data: employeeResponse, isLoading: employeesLoading, isError: employeesError } = useEmployees(workerDataId);
+  const { data: incidents, isLoading: incidentsLoading, isError: incidentsError } = useCompanyIncidents(workerDataId);
   const { data: alerts, isLoading: alertsLoading } = useAlerts(companyId);
   const employees = employeeResponse?.data || [];
   const syntheticIncidents = incidents || [];
   const today = new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
-  const isSynthetic = Boolean(user?.isSynthetic || activeCompany?.is_synthetic);
 
   return (
     <DashboardShell>
@@ -57,8 +60,8 @@ export default function DashboardPage() {
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KPICard label="Empresas en cartera" value={companiesLoading ? "…" : companies?.length ?? 0} icon={Building2} sub="autorizadas por membership"/>
-        <KPICard label="Trabajadores registrados" value={employeesLoading ? "…" : employees.length} icon={Users} sub={activeCompany?.name || "selecciona una empresa"}/>
-        <KPICard label="Incidentes registrados" value={incidentsLoading ? "…" : syntheticIncidents.length} icon={Activity} sub="empresa activa"/>
+        <KPICard label="Trabajadores registrados" value={!isSynthetic ? "—" : employeesLoading ? "…" : employees.length} icon={Users} sub={isSynthetic ? activeCompany?.name || "selecciona una empresa" : "se habilita tras la revisión legal"}/>
+        <KPICard label="Incidentes registrados" value={!isSynthetic ? "—" : incidentsLoading ? "…" : syntheticIncidents.length} icon={Activity} sub={isSynthetic ? "empresa activa" : "se habilita tras la revisión legal"}/>
         <KPICard label="Estado del entorno" value={isSynthetic ? "Piloto" : "Activo"} icon={ShieldCheck} valueColor={isSynthetic ? "var(--amber)" : "var(--accent)"} sub={isSynthetic ? "aislado de datos reales" : "cuenta en producción"}/>
       </div>
       {(companiesError || employeesError || incidentsError) && <Card className="mb-4 border-red-200 bg-red-50 p-3 text-xs text-red-800">Una o más consultas a Core no están disponibles. Los conteos marcados “—” no se sustituyen por datos demo.</Card>}
@@ -82,7 +85,13 @@ export default function DashboardPage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {!isSynthetic ? (
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-bold">Módulos de {activeCompany?.name || "la empresa"}</h2>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{REAL_MODULES.map(({ href, title, description, icon: Icon }) => <Link key={href} href={href} className="flex items-start gap-2 rounded-md border border-zu-border p-3 transition hover:border-zu-accent"><Icon size={14} className="mt-0.5 text-zu-accent"/><span><span className="block text-xs font-semibold">{title}</span><span className="block text-[11px] text-zu-text3">{description}</span></span></Link>)}</div>
+          <p className="mt-3 text-[11px] text-zu-text3">Trabajadores, incidentes, capacitaciones y exámenes médicos siguen deshabilitados para datos reales mientras se completa la revisión legal de tratamiento de datos personales.</p>
+        </Card>
+      ) : <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Trabajadores recientes</h2><Link href="/dashboard/employees" className="text-xs font-semibold text-zu-accent">Gestionar <ArrowRight size={12} className="inline"/></Link></div>
           {employeesLoading ? <Spinner/> : employees.length ? <div className="divide-y divide-zu-border">{employees.slice(0, 5).map((employee) => <div key={employee.id} className="flex items-center justify-between py-2"><div><p className="text-xs font-semibold">{employee.first_name} {employee.last_name}</p><p className="font-mono text-[10px] text-zu-text3">{employee.document_number}</p></div><Badge variant="amber">SINTÉTICO</Badge></div>)}</div> : <p className="py-5 text-center text-xs text-zu-text3">No hay trabajadores para la empresa activa. <Link href="/dashboard/employees" className="font-semibold text-zu-accent">Crear uno</Link></p>}
@@ -91,8 +100,8 @@ export default function DashboardPage() {
           <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Incidentes recientes</h2><Link href="/dashboard/incidents" className="text-xs font-semibold text-zu-accent">Ver módulo <ArrowRight size={12} className="inline"/></Link></div>
           {incidentsLoading ? <Spinner/> : syntheticIncidents.length ? <div className="divide-y divide-zu-border">{syntheticIncidents.slice(0, 5).map((incident) => <div key={incident.id} className="py-2"><div className="flex items-center justify-between gap-3"><p className="truncate text-xs font-semibold">{incident.description}</p><Badge variant="amber">SINTÉTICO</Badge></div><p className="mt-1 text-[10px] text-zu-text3">{incident.location} · {incident.status} · {new Date(incident.occurred_at).toLocaleDateString("es-CO")}</p></div>)}</div> : <p className="py-5 text-center text-xs text-zu-text3">No hay incidentes registrados.</p>}
         </Card>
-      </div>
-      <div className="mt-4 flex items-center gap-2 text-[11px] text-zu-text3"><Building2 size={13}/> El selector superior cambia de empresa mediante un nuevo token firmado y membership comprobada por Core.</div>
+      </div>}
+      <div className="mt-4 flex items-center gap-2 text-[11px] text-zu-text3"><Building2 size={13}/> {isSynthetic ? "El selector superior cambia de empresa mediante un nuevo token firmado y membership comprobada por Core." : "Cambia de empresa con el selector de arriba; el servidor confirma tu acceso a cada una."}</div>
     </DashboardShell>
   );
 }

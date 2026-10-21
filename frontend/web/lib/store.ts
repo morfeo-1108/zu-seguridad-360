@@ -28,7 +28,7 @@ interface AuthStore {
   companies: CompanyContext[];
   isAuthenticated: boolean;
   setTokens: (token: string, refreshToken?: string) => void;
-  setSession: (user: User, token: string, refreshToken: string, companies: CompanyContext[], activeCompany: CompanyContext) => void;
+  setSession: (user: User, token: string, refreshToken: string, companies: CompanyContext[], activeCompany: CompanyContext | null) => void;
   setUser: (user: User) => void;
   setCompanies: (companies: CompanyContext[]) => void;
   setActiveCompany: (company: CompanyContext) => void;

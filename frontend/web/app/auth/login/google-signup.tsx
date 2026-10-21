@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authAPI, companyAPI, type GoogleInitialCompany, type GoogleSignupPublicConfig, type LoginResponse } from "@/lib/api";
+import { authAPI, companyAPI, type GoogleSignupPublicConfig, type LoginResponse } from "@/lib/api";
 import { useAuthStore, type CompanyContext, type User } from "@/lib/store";
 
 declare global {
@@ -55,9 +55,6 @@ export default function GoogleSignup({ config }: Props) {
   const nonceRef = useRef("");
   const setupRef = useRef<(() => Promise<void>) | null>(null);
   const [registration, setRegistration] = useState<{ token: string; email: string; firstName: string; lastName: string } | null>(null);
-  const [company, setCompany] = useState<GoogleInitialCompany>({
-    name: "", nit: "", ciiu: "", arl: "", legal_rep: "", legal_rep_email: "",
-  });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -70,9 +67,10 @@ export default function GoogleSignup({ config }: Props) {
     const [profileResponse, companyResponse] = await Promise.all([authAPI.me(), companyAPI.list()]);
     const profile = profileResponse.data;
     const companies = companyResponse.data.data || [];
-    if (!profile.id || !profile.company_id || companies.length === 0) throw new Error("session_unavailable");
-    const active = companies.find((item) => item.id === profile.company_id);
-    if (!active) throw new Error("company_membership_unavailable");
+    if (!profile.id) throw new Error("session_unavailable");
+    // A new account has no company yet: it is registered from the dashboard.
+    const active = companies.find((item) => item.id === profile.company_id) ?? null;
+    if (profile.company_id && !active) throw new Error("company_membership_unavailable");
     const user: User = {
       id: profile.id,
       email: profile.email,
@@ -80,11 +78,11 @@ export default function GoogleSignup({ config }: Props) {
       firstName: profile.first_name,
       lastName: profile.last_name,
       tenantId: profile.tenant_id,
-      companyId: profile.company_id,
+      companyId: active?.id ?? "",
       isSynthetic: profile.is_synthetic,
     };
-    useAuthStore.getState().setSession(user, tokens.access_token, tokens.refresh_token, companies as CompanyContext[], active as CompanyContext);
-    router.replace("/dashboard");
+    useAuthStore.getState().setSession(user, tokens.access_token, tokens.refresh_token, companies as CompanyContext[], active as CompanyContext | null);
+    router.replace(companies.length === 0 ? "/dashboard/companies" : "/dashboard");
   }, [router]);
 
   const setupButton = useCallback(async () => {
@@ -119,11 +117,6 @@ export default function GoogleSignup({ config }: Props) {
                 firstName: payload.profile.first_name,
                 lastName: payload.profile.last_name,
               });
-              setCompany((current) => ({
-                ...current,
-                legal_rep: current.legal_rep || [payload.profile.first_name, payload.profile.last_name].filter(Boolean).join(" "),
-                legal_rep_email: current.legal_rep_email || payload.profile.email,
-              }));
             } else {
               await finishSession(payload as LoginResponse);
             }
@@ -166,7 +159,6 @@ export default function GoogleSignup({ config }: Props) {
     try {
       const response = await authAPI.googleComplete({
         registration_token: registration.token,
-        company,
         terms_accepted: termsAccepted,
         privacy_notice_acknowledged: privacyAcknowledged,
       });
@@ -175,14 +167,14 @@ export default function GoogleSignup({ config }: Props) {
       const status = (cause as { response?: { status?: number } })?.response?.status;
       if (status === 401 || status === 409) {
         const message = status === 409
-          ? "El correo o NIT no puede registrarse porque ya existe. Inicia nuevamente o accede con la cuenta ya registrada."
+          ? "Este correo ya tiene una cuenta. Inicia nuevamente o accede con la cuenta ya registrada."
           : "La validación de Google expiró. Inicia el proceso otra vez.";
         setRegistration(null);
         setTermsAccepted(false);
         setPrivacyAcknowledged(false);
         void setupRef.current?.().then(() => setError(message));
       } else {
-        setError("No se pudo completar el registro. Revisa los datos de la empresa e inténtalo nuevamente.");
+        setError("No se pudo completar el registro. Inténtalo nuevamente.");
       }
     } finally {
       setBusy(false);
@@ -202,18 +194,9 @@ export default function GoogleSignup({ config }: Props) {
   if (registration) {
     return (
       <section className="mb-6 rounded-xl border border-zu-border bg-white p-4" aria-labelledby="google-registration-title">
-        <h3 id="google-registration-title" className="text-[15px] font-bold text-zu-text1">Crea tu espacio de trabajo</h3>
-        <p className="mt-1 text-[12px] text-zu-text2">Google verificó {registration.email}. Indica los datos iniciales de la empresa; no se crea un plan ni se asigna una clase de riesgo automáticamente.</p>
+        <h3 id="google-registration-title" className="text-[15px] font-bold text-zu-text1">Crea tu cuenta</h3>
+        <p className="mt-1 text-[12px] text-zu-text2">Google verificó <b>{registration.firstName} {registration.lastName}</b> ({registration.email}). Después de crear la cuenta registras tus empresas desde el panel.</p>
         <form onSubmit={submitRegistration} className="mt-4 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Razón social / nombre de empresa" value={company.name} onChange={(name) => setCompany({ ...company, name })} required maxLength={255} />
-            <Field label="NIT (declarado)" value={company.nit} onChange={(nit) => setCompany({ ...company, nit })} required maxLength={20} />
-            <Field label="Código CIIU (declarado)" value={company.ciiu} onChange={(ciiu) => setCompany({ ...company, ciiu })} required maxLength={10} />
-            <Field label="ARL (declarada)" value={company.arl} onChange={(arl) => setCompany({ ...company, arl })} required maxLength={100} />
-            <Field label="Representante legal" value={company.legal_rep} onChange={(legal_rep) => setCompany({ ...company, legal_rep })} required maxLength={255} />
-            <Field label="Correo del representante" type="email" value={company.legal_rep_email} onChange={(legal_rep_email) => setCompany({ ...company, legal_rep_email })} required maxLength={255} />
-          </div>
-          <p className="text-[11px] leading-relaxed text-amber-800">Estos datos se declaran durante el alta y no se verifican contra RUES, DIAN, ARL ni otra fuente oficial. La clase de riesgo permanece pendiente de confirmación.</p>
           <label className="flex items-start gap-2 text-[12px] text-zu-text2">
             <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} className="mt-0.5" />
             <span>Acepto los <a href={config.terms_url} target="_blank" rel="noreferrer" className="font-semibold text-zu-accent underline">Términos del servicio</a> (versión {config.terms_version || "configurada"}).</span>
@@ -242,14 +225,3 @@ export default function GoogleSignup({ config }: Props) {
   );
 }
 
-function Field({ label, value, onChange, required, maxLength, type = "text" }: {
-  label: string; value: string; onChange: (value: string) => void;
-  required: boolean; maxLength: number; type?: string;
-}) {
-  return (
-    <label className="block text-[11px] font-semibold text-zu-text2">
-      {label}
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} maxLength={maxLength} className="mt-1 w-full rounded-lg border border-zu-border bg-white px-3 py-2 text-[12px] font-normal text-zu-text1 outline-none focus:border-zu-accent" />
-    </label>
-  );
-}

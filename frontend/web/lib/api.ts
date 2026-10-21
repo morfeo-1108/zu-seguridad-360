@@ -90,6 +90,10 @@ export interface CompanyAPIRecord {
   arl?: string;
   legal_rep?: string;
   legal_rep_email?: string;
+  legal_rep_phone?: string;
+  address?: string;
+  city?: string;
+  department?: string;
   employee_count?: number;
   risk_score?: number;
   status?: string;
@@ -259,7 +263,7 @@ export const authAPI = {
   googleConfig: () => api.get<GoogleSignupPublicConfig>("/api/core/auth/google/config"),
   googleChallenge: () => api.post<{ nonce: string }>("/api/core/auth/google/challenge", {}),
   googleStart: (credential: string, nonce: string) => api.post<LoginResponse | GoogleRegistrationStart>("/api/core/auth/google/start", { credential, nonce }),
-  googleComplete: (payload: { registration_token: string; company: GoogleInitialCompany; terms_accepted: boolean; privacy_notice_acknowledged: boolean }) => api.post<LoginResponse>("/api/core/auth/google/complete", payload),
+  googleComplete: (payload: { registration_token: string; company?: GoogleInitialCompany; terms_accepted: boolean; privacy_notice_acknowledged: boolean }) => api.post<LoginResponse>("/api/core/auth/google/complete", payload),
   me: () => api.get<CurrentUserResponse>("/api/core/auth/me"),
   switchCompany: (companyId: string) => api.post<LoginResponse & { active_company_id: string }>("/api/core/auth/switch-company", { company_id: companyId }),
   logout: () => api.post("/api/core/auth/logout"),
