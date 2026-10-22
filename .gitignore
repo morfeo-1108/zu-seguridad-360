@@ -67,3 +67,4 @@ redis_data/
 .next-build/
 .next-prev/
 .next-failed/
+/.deploy/
