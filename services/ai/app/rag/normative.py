@@ -89,7 +89,7 @@ def index_corpus(client: weaviate.WeaviateClient, embedder: Embedder, chunks: li
     texts = [f"{c['norm_name']} — {c['reference']} {c.get('article_title', '')}\n{c['content']}" for c in chunks]
     vectors = embedder.passages(texts)
     with col.batch.fixed_size(batch_size=64) as batch:
-        for c, v in zip(chunks, vectors):
+        for c, v in zip(chunks, vectors, strict=True):
             props = {k: c.get(k, "") for k in TEXT_PROPS}
             props["year"] = int(c.get("year", 0))
             props["editorial_notes"] = c.get("editorial_notes", [])

@@ -115,6 +115,15 @@ func (fc *FlightController) LinkStatus() (LinkState, float64) {
 
 func (fc *FlightController) OnEvent(f func(PilotDecision)) { fc.onEvent = f }
 
+// check records a failed flight command as a critical decision: the commander
+// is the only link to the aircraft, and a silent failure would leave a log that
+// says the drone did something it did not do.
+func (fc *FlightController) check(cmd string, err error) {
+	if err != nil {
+		fc.log("COMANDO FALLIDO: "+cmd, err.Error(), true)
+	}
+}
+
 func (fc *FlightController) log(decision, reason string, critical bool) {
 	d := PilotDecision{At: time.Now(), Phase: fc.phase, Decision: decision, Reason: reason, Critical: critical}
 	fc.decisions = append(fc.decisions, d)
@@ -199,22 +208,22 @@ func (fc *FlightController) Start(ctx context.Context, pre PreflightResult) erro
 		switch wp.Action {
 		case "hover_capture":
 			fc.transition(PhaseInspecting)
-			fc.commander.GotoWaypoint(ctx, wp)
-			fc.commander.SetGimbal(ctx, wp.GimbalPitch)
-			fc.commander.CapturePhoto(ctx)
+			fc.check("GotoWaypoint", fc.commander.GotoWaypoint(ctx, wp))
+			fc.check("SetGimbal", fc.commander.SetGimbal(ctx, wp.GimbalPitch))
+			fc.check("CapturePhoto", fc.commander.CapturePhoto(ctx))
 			fc.log(fmt.Sprintf("inspección punto %s", wp.TargetID), "captura para análisis de visión IA", false)
 		default:
 			fc.transition(PhaseEnroute)
-			fc.commander.GotoWaypoint(ctx, wp)
+			fc.check("GotoWaypoint", fc.commander.GotoWaypoint(ctx, wp))
 		}
 	}
 
 	// 5. RTH planificado y aterrizaje
 	fc.transition(PhaseRTH)
 	fc.log("regreso a casa", "misión completa, RTH planificado", false)
-	fc.commander.ReturnToHome(ctx)
+	fc.check("ReturnToHome", fc.commander.ReturnToHome(ctx))
 	fc.transition(PhaseLanding)
-	fc.commander.Land(ctx)
+	fc.check("Land", fc.commander.Land(ctx))
 	fc.transition(PhaseLanded)
 	fc.log("aterrizaje completado", "misión finalizada con éxito", false)
 	return nil
@@ -241,18 +250,18 @@ func (fc *FlightController) OnTelemetry(ctx context.Context, t Telemetry) {
 	if verdict.MustLand {
 		fc.transition(PhaseEmergency)
 		fc.log("ATERRIZAJE DE EMERGENCIA", joinReasons(verdict.Violations), true)
-		fc.commander.EmergencyLand(ctx)
+		fc.check("EmergencyLand", fc.commander.EmergencyLand(ctx))
 		return
 	}
 	if verdict.MustRTH && phase != PhaseRTH && phase != PhaseLanding {
 		fc.transition(PhaseRTH)
 		fc.log("RTH AUTÓNOMO", "decisión de seguridad: "+joinReasons(verdict.Violations), true)
-		fc.commander.ReturnToHome(ctx)
+		fc.check("ReturnToHome", fc.commander.ReturnToHome(ctx))
 		return
 	}
 	if !verdict.Safe && len(verdict.Violations) > 0 {
 		// Anomalía no fatal: el piloto reduce y vigila
-		fc.commander.Hover(ctx)
+		fc.check("Hover", fc.commander.Hover(ctx))
 		fc.log("hover de precaución", joinReasons(verdict.Violations), false)
 	}
 }
@@ -272,7 +281,7 @@ func (fc *FlightController) isOverridden() bool {
 func (fc *FlightController) abort(ctx context.Context, reason string) error {
 	fc.transition(PhaseAborted)
 	fc.log("misión abortada", reason, true)
-	fc.commander.ReturnToHome(ctx)
+	fc.check("ReturnToHome", fc.commander.ReturnToHome(ctx))
 	return fmt.Errorf("%s", reason)
 }
 
@@ -312,7 +321,7 @@ func (fc *FlightController) EvaluateOnboardLinkLoss(ctx context.Context, fix GNS
 	// Sin fix GNSS suficiente, el retorno por coordenadas no es confiable → aterrizar.
 	if ok, _ := GNSSHealthy(fix, fc.env.MinGPSSatellites); !ok {
 		fc.log("FAILSAFE: enlace y GNSS degradados", "aterrizaje controlado en sitio", true)
-		fc.commander.EmergencyLand(ctx)
+		fc.check("EmergencyLand", fc.commander.EmergencyLand(ctx))
 		return &LinkLossDecision{Action: ActionLandInPlace, NavMode: "gnss_onboard",
 			Reason: "enlace perdido y fix GNSS insuficiente para RTH seguro"}
 	}
@@ -330,15 +339,15 @@ func (fc *FlightController) EvaluateOnboardLinkLoss(ctx context.Context, fix GNS
 		fc.log("ENLACE PERDIDO — continúa misión onboard", decision.Reason, true)
 	case ActionReturnToHome:
 		fc.transition(PhaseRTH)
-		fc.commander.ReturnToHome(ctx)
+		fc.check("ReturnToHome", fc.commander.ReturnToHome(ctx))
 		bearing, dist := fc.navigator.NavigateHome(GeoPoint{Lat: fix.Latitude, Lng: fix.Longitude, Alt: fix.Altitude})
 		fc.log("ENLACE PERDIDO — RTH por GNSS",
 			joinReasons([]string{decision.Reason, fmt.Sprintf("rumbo %.0f°, %.0fm a home", bearing, dist)}), true)
 	case ActionHoverThenRTH:
-		fc.commander.Hover(ctx)
+		fc.check("Hover", fc.commander.Hover(ctx))
 		fc.log("ENLACE PERDIDO — hover y luego RTH", decision.Reason, true)
 	default:
-		fc.commander.EmergencyLand(ctx)
+		fc.check("EmergencyLand", fc.commander.EmergencyLand(ctx))
 		fc.log("ENLACE PERDIDO — aterrizaje en sitio", decision.Reason, true)
 	}
 	return &decision

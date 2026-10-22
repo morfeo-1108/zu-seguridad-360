@@ -128,7 +128,7 @@ func (c *Consumer) runOnce(ctx context.Context) error {
 func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, dead string) {
 	err := c.Handler(ctx, d)
 	if err == nil {
-		d.Ack(false)
+		ack(d, c.Queue)
 		return
 	}
 	var p permanent
@@ -139,14 +139,28 @@ func (c *Consumer) handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery
 			ContentType: d.ContentType, DeliveryMode: amqp.Persistent, Body: d.Body,
 			Headers: amqp.Table{"x-zu-reason": err.Error(), "x-zu-routing-key": d.RoutingKey},
 		}); perr != nil {
-			d.Nack(false, true)
+			nack(d, c.Queue, true)
 			return
 		}
-		d.Ack(false)
+		ack(d, c.Queue)
 		return
 	}
 	log.Printf("%s: %s failed (attempt %d/%d): %v", c.Queue, d.RoutingKey, n+1, c.MaxAttempts, err)
-	d.Nack(false, false)
+	nack(d, c.Queue, false)
+}
+
+// A failed ack/nack means the channel is gone: the broker redelivers the
+// message on reconnect, so it is only logged.
+func ack(d amqp.Delivery, queue string) {
+	if err := d.Ack(false); err != nil {
+		log.Printf("%s: ack %s: %v", queue, d.RoutingKey, err)
+	}
+}
+
+func nack(d amqp.Delivery, queue string, requeue bool) {
+	if err := d.Nack(false, requeue); err != nil {
+		log.Printf("%s: nack %s: %v", queue, d.RoutingKey, err)
+	}
 }
 
 // Attempts counts how many times the message was dead-lettered out of queue.

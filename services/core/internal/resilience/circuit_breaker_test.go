@@ -31,8 +31,8 @@ func TestCircuitBreaker_RecoversAfterCooldown(t *testing.T) {
 	healthy := func() error { return nil }
 
 	// Abrir el circuito
-	cb.Execute(failing)
-	cb.Execute(failing)
+	_ = cb.Execute(failing)
+	_ = cb.Execute(failing)
 	if cb.State() != StateOpen {
 		t.Fatal("circuito debería estar abierto")
 	}
@@ -52,12 +52,12 @@ func TestCircuitBreaker_SuccessResetsFailures(t *testing.T) {
 	failing := func() error { return errors.New("falla") }
 	healthy := func() error { return nil }
 
-	cb.Execute(failing)
-	cb.Execute(failing)
+	_ = cb.Execute(failing)
+	_ = cb.Execute(failing)
 	// Un éxito antes de llegar al umbral resetea el contador
-	cb.Execute(healthy)
-	cb.Execute(failing)
-	cb.Execute(failing)
+	_ = cb.Execute(healthy)
+	_ = cb.Execute(failing)
+	_ = cb.Execute(failing)
 	// Solo 2 fallas consecutivas tras el reset: sigue cerrado
 	if cb.State() == StateOpen {
 		t.Error("un éxito debió resetear el contador de fallas")

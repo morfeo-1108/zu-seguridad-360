@@ -23,7 +23,7 @@ func TestCompanyQuotaRejectsWhenBillingDisallows(t *testing.T) {
 		if r.Header.Get("Authorization") == "" {
 			t.Fatalf("expected the bearer token to be forwarded to billing")
 		}
-		w.Write([]byte(`{"allowed":false,"current_count":10,"max_companies":10}`))
+		_, _ = w.Write([]byte(`{"allowed":false,"current_count":10,"max_companies":10}`))
 	}))
 	defer server.Close()
 
@@ -36,7 +36,7 @@ func TestCompanyQuotaRejectsWhenBillingDisallows(t *testing.T) {
 
 func TestCompanyQuotaAllowsWhenBillingPermits(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"allowed":true,"current_count":3,"max_companies":10}`))
+		_, _ = w.Write([]byte(`{"allowed":true,"current_count":3,"max_companies":10}`))
 	}))
 	defer server.Close()
 

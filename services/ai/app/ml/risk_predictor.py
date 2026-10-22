@@ -17,9 +17,9 @@ Por qué gradient boosting y no deep learning:
 
 Se activa cuando N>50 empresas (suficiente señal). Antes: motor de reglas.
 """
-from dataclasses import dataclass
-from typing import Dict, List, Optional
 import math
+from dataclasses import dataclass
+from typing import Dict, List
 
 
 @dataclass
@@ -104,9 +104,12 @@ class RiskPredictor:
         )
 
     def _band(self, p: float) -> str:
-        if p >= 0.75: return "crítico"
-        if p >= 0.50: return "alto"
-        if p >= 0.25: return "medio"
+        if p >= 0.75:
+            return "crítico"
+        if p >= 0.50:
+            return "alto"
+        if p >= 0.25:
+            return "medio"
         return "bajo"
 
     def _recommend(self, band: str, factors: List[Dict]) -> str:

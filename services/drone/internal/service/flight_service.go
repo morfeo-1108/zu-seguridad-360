@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/zu-seguridad/drone/internal/flight"
@@ -72,7 +73,11 @@ func (fs *FlightService) AuthorizeAndStart(ctx context.Context, missionID string
 		return fmt.Errorf("misión %s no encontrada", missionID)
 	}
 	fc.AuthorizePIC()
-	go fc.Start(ctx, pre) // ejecución autónoma en background
+	go func() { // ejecución autónoma en background
+		if err := fc.Start(ctx, pre); err != nil {
+			log.Printf("misión %s terminó con error: %v", missionID, err)
+		}
+	}()
 	return nil
 }
 

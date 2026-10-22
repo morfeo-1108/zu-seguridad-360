@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Optional, Dict
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from typing import Dict, List, Optional
 
-from app.core.config import settings
+from fastapi import APIRouter, Depends, HTTPException
+from langchain.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+
 from app.core.auth import get_current_tenant
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -106,7 +107,7 @@ async def analyze_incident(
         data = json.loads(result.content)
         return IncidentAnalysisResponse(**data)
     except (json.JSONDecodeError, Exception) as e:
-        raise HTTPException(status_code=500, detail=f"Analysis parsing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis parsing failed: {str(e)}") from e
 
 
 @router.post("/bow-tie/{incident_id}")

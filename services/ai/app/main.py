@@ -1,16 +1,16 @@
-from contextlib import asynccontextmanager
 import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from app.api import rag
 from app.core.config import settings
 from app.core.feature_gates import ai_path_enabled
 from app.core.privacy_errors import public_error_payload
-from app.api import rag
 
 logger = logging.getLogger(__name__)
 

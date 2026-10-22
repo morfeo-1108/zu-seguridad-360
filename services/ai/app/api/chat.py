@@ -1,15 +1,13 @@
-from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from langchain_openai import ChatOpenAI
-from langchain.memory import ConversationBufferWindowMemory
-from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langchain.tools import tool
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 import json
+from typing import Any, Dict, List, Optional
 
-from app.core.config import settings
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from langchain.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+
 from app.core.auth import get_current_tenant
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -123,9 +121,6 @@ async def chat_message(
 
 async def execute_action(action_type: str, req: ChatRequest, tenant_id: str) -> Dict:
     """Ejecuta acciones reales en el sistema ZU."""
-    import httpx
-
-    CORE_URL = "http://core:4001/v1"
 
     actions = {
         "create_incident": lambda: {"status": "pending", "message": "Creando incidente..."},

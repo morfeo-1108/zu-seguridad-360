@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -99,8 +100,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (access
 		return "", "", fmt.Errorf("refresh token storage unavailable")
 	}
 
-	// Update last login
-	s.userRepo.UpdateLastLogin(ctx, user.ID)
+	// Update last login (informational: a failure must not block the sign-in)
+	if err := s.userRepo.UpdateLastLogin(ctx, user.ID); err != nil {
+		log.Printf("last login for %s not recorded: %v", user.ID, err)
+	}
 
 	return accessToken, refreshToken, nil
 }

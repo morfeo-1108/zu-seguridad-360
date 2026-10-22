@@ -18,8 +18,10 @@ explícito (ConsentService en core) antes del enrolamiento. Se guarda el embeddi
 no la foto; el embedding no es reversible a imagen.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+
 import os
+from dataclasses import dataclass
+
 import numpy as np
 
 

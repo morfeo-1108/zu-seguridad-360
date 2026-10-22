@@ -82,7 +82,7 @@ func TestGetTransactionReadsAuthoritativeState(t *testing.T) {
 			w.WriteHeader(404)
 			return
 		}
-		w.Write([]byte(`{"data":{"id":"tx-1","status":"APPROVED","reference":"INV-1","amount_in_cents":500,"currency":"COP"}}`))
+		_, _ = w.Write([]byte(`{"data":{"id":"tx-1","status":"APPROVED","reference":"INV-1","amount_in_cents":500,"currency":"COP"}}`))
 	}))
 	defer srv.Close()
 	c := NewClient(Config{PublicKey: "pub_test_x", BaseURL: srv.URL})

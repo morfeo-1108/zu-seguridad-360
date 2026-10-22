@@ -1,13 +1,14 @@
 """API de inspección por zona: el dron envía un frame y recibe validación por trabajador."""
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
-from typing import Any
 import json
-import httpx
+from typing import Any
 
-from app.vision.compliance_validator import validator
-from app.vision.biometric import biometric_engine
-from app.core.config import settings
+import httpx
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+
 from app.core.auth import get_current_user
+from app.core.config import settings
+from app.vision.biometric import biometric_engine
+from app.vision.compliance_validator import validator
 
 router = APIRouter()
 

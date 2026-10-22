@@ -12,12 +12,14 @@ Resultado: el supervisor recibe "Carlos Rodríguez en zona de alturas: falta arn
 (CRÍTICO) y línea de vida (CRÍTICO)" — no un genérico "alguien sin EPP".
 """
 from __future__ import annotations
+
+import time
 from dataclasses import dataclass, field
 from typing import Any
-import time
 
-from app.vision.inference import engine as vision_engine, Detection, DetectionClass
-from app.vision.biometric import biometric_engine, FaceMatch
+from app.vision.biometric import FaceMatch, biometric_engine
+from app.vision.inference import Detection
+from app.vision.inference import engine as vision_engine
 
 
 @dataclass

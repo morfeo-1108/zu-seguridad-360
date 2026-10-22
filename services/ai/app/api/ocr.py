@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-import boto3
+from typing import Any, Dict, List, Optional
 
-from app.core.config import settings
+import boto3
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
+
 from app.core.auth import get_current_tenant
+from app.core.config import settings
 from app.core.privacy_errors import ocr_failure_payload
 
 router = APIRouter()

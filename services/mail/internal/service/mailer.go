@@ -298,6 +298,6 @@ func newMessageID(from string) string {
 
 func randHex(n int) string {
 	b := make([]byte, n)
-	rand.Read(b)
+	_, _ = rand.Read(b) // crypto/rand.Read never fails since Go 1.24 (it panics instead)
 	return hex.EncodeToString(b)
 }

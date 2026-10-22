@@ -1,12 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
-from typing import Dict, Any
-import uuid
 
-from app.services.pdf_generator import DocumentGenerator
 from app.core.auth import get_current_user, require_company
 from app.core.db import Session, get_company
+from app.services.pdf_generator import DocumentGenerator
 
 router = APIRouter()
 gen = DocumentGenerator()

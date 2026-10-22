@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -160,11 +159,6 @@ func (fm *FleetManager) healthMonitor() {
 			}
 		}
 	}
-}
-
-func (fm *FleetManager) publishAlert(exchange, key string, payload map[string]interface{}) {
-	data, _ := json.Marshal(payload)
-	log.Printf("Alert published: %s/%s — %s", exchange, key, string(data))
 }
 
 // GetInspectionReports devuelve los reportes de inspección de una empresa.

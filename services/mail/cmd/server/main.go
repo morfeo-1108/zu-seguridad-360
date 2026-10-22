@@ -89,7 +89,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	cancel()
-	app.ShutdownWithTimeout(5 * time.Second)
+	if err := app.ShutdownWithTimeout(5 * time.Second); err != nil {
+		log.Printf("shutdown: %v", err)
+	}
 }
 
 // consumeForever keeps a consumer attached to zu.mail.outbound, reconnecting
@@ -177,14 +179,14 @@ func handle(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, mailer *serv
 	switch {
 	case err == nil:
 		log.Printf("mail sent %s to %d recipient(s) [tenant=%s]", res.MessageID, len(msg.To)+len(msg.CC), msg.TenantID)
-		d.Ack(false)
+		ack(d)
 	case errors.Is(err, service.ErrPermanent):
 		deadLetter(ctx, ch, d, err.Error())
 	case attempts(d) >= maxAttempts-1:
 		deadLetter(ctx, ch, d, "max attempts reached: "+err.Error())
 	default:
 		log.Printf("mail send failed (attempt %d/%d, retry in %ds): %v", attempts(d)+1, maxAttempts, retryDelayMS/1000, err)
-		d.Nack(false, false) // dead-letters into zu.mail.retry, back after the TTL
+		nack(d, false) // dead-letters into zu.mail.retry, back after the TTL
 	}
 }
 
@@ -207,8 +209,22 @@ func deadLetter(ctx context.Context, ch *amqp.Channel, d amqp.Delivery, reason s
 		Headers: amqp.Table{"x-zu-reason": reason},
 	})
 	if err != nil {
-		d.Nack(false, true) // keep it rather than lose it
+		nack(d, true) // keep it rather than lose it
 		return
 	}
-	d.Ack(false)
+	ack(d)
+}
+
+// A failed ack/nack means the channel is gone: the broker redelivers the
+// message on reconnect, so it is only logged.
+func ack(d amqp.Delivery) {
+	if err := d.Ack(false); err != nil {
+		log.Printf("mail ack: %v", err)
+	}
+}
+
+func nack(d amqp.Delivery, requeue bool) {
+	if err := d.Nack(false, requeue); err != nil {
+		log.Printf("mail nack: %v", err)
+	}
 }
