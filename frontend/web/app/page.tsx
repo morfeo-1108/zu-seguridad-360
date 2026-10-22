@@ -13,8 +13,7 @@ import { BEFORE_AFTER, DIFFERENTIATORS, ROADMAP, TARGETS } from "@/lib/landing-c
 import { NORMS_INDEXED } from "@/lib/normative-corpus";
 import { display } from "@/components/landing/fonts";
 
-// Three.js and the particle canvas load after hydration, off the critical path.
-const RefractionSphere = dynamic(() => import("@/components/landing/refraction-sphere").then((m) => m.RefractionSphere), { ssr: false });
+// The particle canvas loads after hydration, off the critical path.
 const Particles = dynamic(() => import("@/components/landing/particles").then((m) => m.Particles), { ssr: false });
 
 const ICONS: Record<string, typeof Lock> = {
@@ -110,7 +109,6 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/55 to-[#0B0F0C]" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/30 to-transparent" />
         <Particles className="pointer-events-none absolute inset-0 h-full w-full" />
-        <RefractionSphere className="pointer-events-none absolute -right-[22%] top-[9%] h-[78vw] w-[78vw] opacity-90 md:right-0 md:top-0 md:h-full md:w-[46%] md:opacity-100" />
 
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 items-center px-5 pb-16 pt-28 sm:px-6 sm:pt-32 lg:px-10">
           <div className="max-w-2xl animate-hero-in">
