@@ -58,7 +58,6 @@ func PlanMission(home GeoPoint, targets []InspectionTarget, env FlightEnvelope) 
 	// 3. Construir waypoints con acciones de inspección
 	plan := MissionPlan{Home: home, CruiseAlt: cruiseAlt}
 	seq := 0
-	cursor := home
 	var totalDist float64
 
 	// Despegue + ascenso a crucero
@@ -67,7 +66,7 @@ func PlanMission(home GeoPoint, targets []InspectionTarget, env FlightEnvelope) 
 		Seq: seq, Point: takeoff, SpeedMS: 2, GimbalPitch: 0, Action: "transit",
 	})
 	seq++
-	cursor = takeoff
+	cursor := takeoff
 
 	for _, t := range ordered {
 		// Transitar a la vertical del objetivo en altitud de crucero

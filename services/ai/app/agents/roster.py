@@ -15,6 +15,7 @@ El dashboard ultra-avanzado muestra ambos vivos, pero etiquetados por clase, par
 que la profesional SST entienda qué está razonando y qué está ejecutando reglas.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 

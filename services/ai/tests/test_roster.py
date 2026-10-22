@@ -1,8 +1,10 @@
 """Tests del roster de agentes — las dos clases de autonomía."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.agents.roster import roster_summary, REASONING_AGENTS, DETERMINISTIC_AGENTS, AgentClass
+from app.agents.roster import DETERMINISTIC_AGENTS, REASONING_AGENTS, AgentClass, roster_summary
 
 
 def test_roster_has_both_classes():

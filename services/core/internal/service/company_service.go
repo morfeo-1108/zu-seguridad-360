@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zu-seguridad/core/internal/model"
 	"github.com/zu-seguridad/core/internal/repository"
+	"log"
 	"math"
 	"net/http"
 	"strings"
@@ -227,7 +228,9 @@ func (s *CompanyService) CalculateRiskScore(ctx context.Context, id, tenantID uu
 	score -= riskPenalty[company.RiskClass]
 	score = math.Max(0, math.Min(100, score))
 
-	s.repo.UpdateRiskScore(ctx, id, score)
+	if err := s.repo.UpdateRiskScore(ctx, id, score); err != nil {
+		return 0, err
+	}
 	return score, nil
 }
 
@@ -246,7 +249,9 @@ func (s *CompanyService) assignRiskClass(ciiu string) model.RiskClass {
 
 func (s *CompanyService) publishEvent(exchange, key string, payload map[string]interface{}) {
 	data, _ := json.Marshal(payload)
-	s.rabbit.Publish(exchange, key, data)
+	if err := s.rabbit.Publish(exchange, key, data); err != nil {
+		log.Printf("event %s/%s not published: %v", exchange, key, err)
+	}
 }
 
 func isSyntheticARL(value string) bool {

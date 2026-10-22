@@ -1,5 +1,6 @@
 import weaviate
-from weaviate.classes.config import Configure, Property, DataType
+from weaviate.classes.config import Configure, DataType, Property
+
 from app.core.config import settings
 
 _client = None

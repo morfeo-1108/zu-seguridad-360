@@ -127,7 +127,7 @@ func Build(inv Invoice) (*Result, error) {
 
 func esc(s string) string {
 	var b bytes.Buffer
-	xml.EscapeText(&b, []byte(s))
+	_ = xml.EscapeText(&b, []byte(s)) // writes to a bytes.Buffer cannot fail
 	return b.String()
 }
 

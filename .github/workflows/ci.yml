@@ -7,9 +7,9 @@ permissions:
 
 on:
   push:
-    branches: [main, develop, "feat/**", "fix/**"]
+    branches: [master, main, develop, "feat/**", "fix/**"]
   pull_request:
-    branches: [main, develop]
+    branches: [master, main, develop]
 
 env:
   REGISTRY: ghcr.io
@@ -33,6 +33,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
+          version: v1.64.8 # fijada: una versión nueva del linter no debe romper el CI sin cambios en el código
           working-directory: services/${{ matrix.service }}
 
       - name: Test
@@ -77,7 +78,7 @@ jobs:
       - name: Lint
         working-directory: services/${{ matrix.service }}
         run: |
-          pip install ruff
+          pip install ruff==0.17.1  # fijada; reglas en services/<svc>/ruff.toml
           ruff check .
 
       - name: Test
@@ -87,7 +88,7 @@ jobs:
             echo "No Python tests for ${{ matrix.service }}; skipped."
             exit 0
           fi
-          pytest tests/ -v --asyncio-mode=auto
+          python -m pytest tests/ -v --asyncio-mode=auto
 
   # ── Security scan ────────────────────────────────────────
   security:

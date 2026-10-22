@@ -1,10 +1,16 @@
 """Tests del motor de inferencia de visión — severidad y clasificación."""
 import asyncio
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.vision.inference import (
-    VisionInferenceEngine, Detection, DetectionClass, InferenceResult, SEVERITY,
+    SEVERITY,
+    Detection,
+    DetectionClass,
+    InferenceResult,
+    VisionInferenceEngine,
 )
 
 

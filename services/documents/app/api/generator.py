@@ -59,7 +59,7 @@ async def _render(req: GenerateRequest, user: dict, session, doc_id: str) -> tup
     try:
         return generator.generate(req.template_key, data, doc_id), data
     except (KeyError, ValueError, TypeError) as e:
-        raise HTTPException(status_code=422, detail=f"Datos incompletos para la plantilla: {e}")
+        raise HTTPException(status_code=422, detail=f"Datos incompletos para la plantilla: {e}") from e
 
 
 @router.get("/templates")
@@ -115,7 +115,7 @@ async def download_document(doc_id: str, user=Depends(get_current_user)):
     try:
         uuid.UUID(doc_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="Documento no encontrado")
+        raise HTTPException(status_code=404, detail="Documento no encontrado") from None
     async with Session() as session:
         doc = await session.scalar(select(GeneratedDocument).where(
             GeneratedDocument.id == doc_id, GeneratedDocument.tenant_id == user["tenant_id"],

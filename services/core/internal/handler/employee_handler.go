@@ -107,7 +107,9 @@ func (h *EmployeeHandler) Update(c *fiber.Ctx) error {
 	}
 	tenantID := mustUUID(c.Locals("tenant_id"))
 	var input service.UpdateEmployeeInput
-	c.BodyParser(&input)
+	if err := c.BodyParser(&input); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "cuerpo de solicitud inválido")
+	}
 	emp, err := h.svc.Update(c.Context(), id, companyID, tenantID, input)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())

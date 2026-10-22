@@ -1,5 +1,6 @@
-from pydantic_settings import BaseSettings
 from typing import List
+
+from pydantic_settings import BaseSettings
 
 from app.core.vault import load_vault_secrets
 

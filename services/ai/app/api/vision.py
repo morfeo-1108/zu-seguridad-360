@@ -1,7 +1,8 @@
 """API de inferencia de visión para el sistema de drones."""
-from fastapi import APIRouter, UploadFile, File, Form, Depends
-from app.vision.inference import engine
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+
 from app.core.auth import get_current_user
+from app.vision.inference import engine
 
 router = APIRouter()
 

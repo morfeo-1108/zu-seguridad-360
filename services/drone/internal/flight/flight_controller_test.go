@@ -176,7 +176,9 @@ func TestFlightController_RecordsDecisions(t *testing.T) {
 	cmd := &mockCommander{}
 	fc := NewFlightController("d1", "m1", testPlan(), DefaultEnvelope(), nil, cmd)
 	fc.AuthorizePIC()
-	fc.Start(context.Background(), PreflightResult{Cleared: true})
+	if err := fc.Start(context.Background(), PreflightResult{Cleared: true}); err != nil {
+		t.Fatalf("misión con preflight aprobado no debe fallar: %v", err)
+	}
 
 	// La caja negra debe tener decisiones registradas
 	decisions := fc.Decisions()

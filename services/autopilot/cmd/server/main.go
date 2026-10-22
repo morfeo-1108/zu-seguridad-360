@@ -103,5 +103,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	app.ShutdownWithTimeout(5 * time.Second)
+	if err := app.ShutdownWithTimeout(5 * time.Second); err != nil {
+		log.Printf("shutdown: %v", err)
+	}
 }

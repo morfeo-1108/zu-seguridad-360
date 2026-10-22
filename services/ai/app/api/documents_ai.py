@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
-import json
+from typing import Any, Dict, List
 
-from app.core.config import settings
+from fastapi import APIRouter, Depends, HTTPException
+from langchain.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+
 from app.core.auth import get_current_tenant
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -102,7 +102,7 @@ async def generate_document(
         try:
             formatted_prompt = prompt_template.format(**req.company_data)
         except KeyError as e:
-            raise HTTPException(status_code=400, detail=f"Campo requerido faltante: {e}")
+            raise HTTPException(status_code=400, detail=f"Campo requerido faltante: {e}") from e
 
         llm = ChatOpenAI(
             model=settings.LLM_MODEL,
@@ -132,7 +132,7 @@ async def generate_document(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generando documento: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando documento: {str(e)}") from e
 
 
 @router.get("/templates")

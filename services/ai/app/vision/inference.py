@@ -10,11 +10,12 @@ eficiente en edge/servidor). En desarrollo degrada con elegancia si el modelo no
 está presente, pero el contrato de inferencia es el de producción.
 """
 from __future__ import annotations
+
+import os
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-import time
-import os
 
 
 class DetectionClass(str, Enum):
@@ -141,7 +142,6 @@ class VisionInferenceEngine:
 
     def _run_real_inference(self, frame_bytes: bytes, altitude_context: str) -> list[Detection]:
         """Inferencia real con ONNX. Preprocesa, ejecuta, post-procesa (NMS)."""
-        import numpy as np
         # 1. Preprocesar: decodificar, resize 640x640, normalizar, NCHW
         img = self._preprocess(frame_bytes)
         # 2. Inferencia EPP

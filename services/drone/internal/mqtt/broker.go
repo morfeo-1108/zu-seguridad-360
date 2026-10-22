@@ -64,13 +64,21 @@ func (b *MQTTBroker) onConnect(c paho.Client) {
 
 func (b *MQTTBroker) handleTelemetry(_ paho.Client, msg paho.Message) {
 	var p TelemetryPayload
-	json.Unmarshal(msg.Payload(), &p)
+	// A malformed frame must be dropped, not passed on as zero telemetry
+	// (0 % battery, 0 satellites) that would trigger failsafes.
+	if err := json.Unmarshal(msg.Payload(), &p); err != nil {
+		log.Printf("telemetry dropped (%s): %v", msg.Topic(), err)
+		return
+	}
 	b.telemetryCh <- p
 }
 
 func (b *MQTTBroker) handleVisionEvent(_ paho.Client, msg paho.Message) {
 	var e VisionEvent
-	json.Unmarshal(msg.Payload(), &e)
+	if err := json.Unmarshal(msg.Payload(), &e); err != nil {
+		log.Printf("vision event dropped (%s): %v", msg.Topic(), err)
+		return
+	}
 	b.visionCh <- e
 }
 

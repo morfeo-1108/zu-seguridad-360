@@ -1,11 +1,13 @@
 """API del sistema multi-agente: punto de entrada para el profesional SST."""
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from typing import Any
 
-from app.agents.orchestrator import orchestrator, AgentContext
-from app.skills.registry import registry
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from app.agents.orchestrator import AgentContext, orchestrator
+from app.agents.roster import roster_summary
 from app.core.auth import get_current_user
+from app.skills.registry import registry
 
 router = APIRouter()
 
@@ -50,7 +52,6 @@ async def list_skills(user=Depends(get_current_user)):
     return {"skills": registry.tool_specs(user["role"])}
 
 
-from app.agents.roster import roster_summary
 
 @router.get("/roster")
 async def get_roster(user=Depends(get_current_user)):

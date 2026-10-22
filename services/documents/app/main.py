@@ -1,13 +1,14 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.core.config import settings
-from app.core.privacy_gate import documents_path_enabled
 from sqlalchemy import text
 
-from app.api import generator, certificates, reports
+from app.api import certificates, generator, reports
+from app.core.config import settings
 from app.core.db import engine, init_db
+from app.core.privacy_gate import documents_path_enabled
 from app.services.pdf_generator import TEMPLATES
 
 

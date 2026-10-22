@@ -33,7 +33,7 @@ func TestWhatsAppSendsRealRequestWhenConfigured(t *testing.T) {
 		gotAuth = r.Header.Get("Authorization")
 		gotPath = r.URL.Path
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"messages":[{"id":"wamid.x"}]}`))
+		_, _ = w.Write([]byte(`{"messages":[{"id":"wamid.x"}]}`))
 	}))
 	defer server.Close()
 
@@ -55,8 +55,10 @@ func TestWhatsAppSendsRealRequestWhenConfigured(t *testing.T) {
 func TestWhatsAppUsesApprovedTemplateWhenConfigured(t *testing.T) {
 	var got map[string]interface{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewDecoder(r.Body).Decode(&got)
-		w.Write([]byte(`{}`))
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Errorf("request body: %v", err)
+		}
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer server.Close()
 	d := NewNotificationDispatcher(nil, nil, map[string]string{"whatsapp_token": "t", "whatsapp_phone_number_id": "1", "whatsapp_template": "alerta_sst"})

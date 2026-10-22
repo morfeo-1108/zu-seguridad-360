@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-from neo4j import GraphDatabase
 import json
-from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from app.core.config import settings
+from fastapi import APIRouter, Depends
+from neo4j import GraphDatabase
+from pydantic import BaseModel
+
 from app.core.auth import get_current_tenant
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -102,7 +102,7 @@ async def get_company_insights(
                     confidence=0.91,
                 ))
 
-    except Exception as e:
+    except Exception:
         # Si Neo4j no disponible, retornar insights generados por reglas
         insights = _rule_based_insights(req.company_id)
     finally:

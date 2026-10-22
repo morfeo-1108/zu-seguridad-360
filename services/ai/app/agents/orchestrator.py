@@ -15,13 +15,12 @@ Patrón: Supervisor/Router + agentes especialistas + memoria compartida.
 - OrchestratorAgent: enruta y compone respuestas multi-dominio.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-import json
 
-from app.skills.registry import registry, SkillResult
-from app.core.config import settings
+from app.skills.registry import registry
 
 
 class AgentRole(str, Enum):

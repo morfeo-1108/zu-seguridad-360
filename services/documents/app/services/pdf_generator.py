@@ -2,23 +2,22 @@
 Motor de generación PDF para los 49 documentos SST normativos.
 Usa ReportLab para docs estructurados y WeasyPrint para docs HTML.
 """
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.lib.colors import HexColor, black, white
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, Image
-)
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from reportlab.pdfgen import canvas
-import qrcode
-from reportlab.lib.utils import ImageReader
 import io
-from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+from xml.sax.saxutils import escape as xml_escape
+from xml.sax.saxutils import unescape as xml_unescape
+
+import qrcode
+from reportlab.lib.colors import HexColor, white
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
+from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 # Colores corporativos ZU
 ZU_BLUE    = HexColor("#2563EB")
@@ -200,7 +199,7 @@ class DocumentGenerator:
             "Cumplir la normatividad nacional vigente aplicable en materia de riesgos laborales.",
             "Investigar los accidentes de trabajo y enfermedades laborales ocurridos en la empresa.",
             "Proteger la seguridad y salud de todos los trabajadores, mediante la mejora continua del SG-SST.",
-            f"Garantizar la participación de todos los trabajadores a través del COPASST en el mejoramiento del SG-SST.",
+            "Garantizar la participación de todos los trabajadores a través del COPASST en el mejoramiento del SG-SST.",
             "Asignar y comunicar las responsabilidades específicas en SST a todos los niveles de la organización.",
         ]
         for i, c in enumerate(commitments, 1):
@@ -210,9 +209,9 @@ class DocumentGenerator:
         # Objetivos SST
         story.append(Paragraph("OBJETIVOS DEL SG-SST", heading_style))
         objectives = [
-            f"Alcanzar y mantener un cumplimiento ≥ 95% en los estándares mínimos de la Resolución 0312 de 2019.",
+            "Alcanzar y mantener un cumplimiento ≥ 95% en los estándares mínimos de la Resolución 0312 de 2019.",
             "Reducir el Índice de Frecuencia (IF) de accidentes de trabajo en un 20% anual.",
-            f"Garantizar la cobertura del 100% de los trabajadores en los programas de capacitación SST.",
+            "Garantizar la cobertura del 100% de los trabajadores en los programas de capacitación SST.",
             "Mantener la gestión de exámenes médicos ocupacionales conforme a la normativa vigente, validada por profesional competente antes de emitir este documento.",
         ]
         for obj in objectives:

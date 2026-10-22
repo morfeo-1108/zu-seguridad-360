@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"strconv"
 )
 
 type Config struct {
@@ -45,13 +44,6 @@ func (c *Config) ValidateProduction() error {
 		return fmt.Errorf("ENV=%s requires VAULT_ENABLED=true", c.Env)
 	}
 	return nil
-}
-
-func getInt(k string, d int) int {
-	if n, err := strconv.Atoi(os.Getenv(k)); err == nil && n > 0 {
-		return n
-	}
-	return d
 }
 
 func getEnv(k, d string) string {

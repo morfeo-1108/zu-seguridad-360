@@ -7,10 +7,10 @@ reales se poblarán durante el piloto de campo con datos etiquetados; aquí qued
 el andamiaje para capturarlos de forma sistemática, no inventada.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field, asdict
+
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
-import time
 
 
 @dataclass

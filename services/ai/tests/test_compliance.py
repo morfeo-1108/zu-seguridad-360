@@ -1,9 +1,13 @@
 """Tests del validador de cumplimiento — checklist por trabajador y zona."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.vision.compliance_validator import (
-    ComplianceValidator, WorkerCompliance, WorkerComplianceItem,
+    ComplianceValidator,
+    WorkerCompliance,
+    WorkerComplianceItem,
 )
 
 

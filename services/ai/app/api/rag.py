@@ -68,7 +68,7 @@ async def query_normative(q: Query, user: dict = Depends(get_current_user)):
     try:
         return await asyncio.to_thread(_run, q)
     except Exception:
-        raise HTTPException(status_code=503, detail="Motor normativo no disponible")
+        raise HTTPException(status_code=503, detail="Motor normativo no disponible") from None
 
 
 @router.get("/norms")

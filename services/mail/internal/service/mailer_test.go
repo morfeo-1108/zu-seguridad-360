@@ -58,7 +58,7 @@ func fakeSMTP(t *testing.T, offerStartTLS bool) (addr string, got chan string) {
 		}
 		defer conn.Close()
 		r := bufio.NewReader(conn)
-		w := func(s string) { io.WriteString(conn, s+"\r\n") }
+		w := func(s string) { _, _ = io.WriteString(conn, s+"\r\n") }
 		w("220 fake")
 		for {
 			line, err := r.ReadString('\n')
