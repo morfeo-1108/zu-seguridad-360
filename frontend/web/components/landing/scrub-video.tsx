@@ -12,7 +12,12 @@ type Props = {
 };
 
 // The video is scrubbed by scroll, never autoplayed: currentTime follows
-// ScrollTrigger's progress (start 'top top', end '+=100%', scrub: true).
+// ScrollTrigger's progress (start 'top top', scrub: true). On wide screens the
+// hero is pinned for one viewport of scroll (end '+=100%'). On phones it is
+// not pinned: the hero can be taller than the visible area (Safari's toolbars
+// take ~180px), and a pinned section hides whatever is below the fold until
+// the pin ends. There the video scrubs while the hero scrolls away
+// (end 'bottom top').
 // Seeks are coalesced to one per animation frame and skipped while a seek is
 // pending, so fast wheel spins do not queue dozens of decoder seeks.
 //
@@ -45,19 +50,33 @@ export function ScrubVideo({ triggerRef, poster, sources, className }: Props) {
       const [{ gsap }, { ScrollTrigger }] = await Promise.all([import("gsap"), import("gsap/ScrollTrigger")]);
       if (killed) return;
       gsap.registerPlugin(ScrollTrigger);
+      const pin = window.matchMedia("(min-width: 768px)").matches && trigger.offsetHeight <= window.innerHeight + 1;
       st = ScrollTrigger.create({
-        trigger, start: "top top", end: "+=100%", scrub: true, pin: true, anticipatePin: 1,
+        trigger, start: "top top", end: pin ? "+=100%" : "bottom top", scrub: true, pin, anticipatePin: pin ? 1 : 0,
         onUpdate: requestSeek,
       });
     })();
 
+    const apple = /Apple/.test(navigator.vendor);
     const attach = () => {
       if (killed) return;
       const set = window.matchMedia("(max-width: 767px)").matches ? sources.narrow : sources.wide;
-      video.src = video.canPlayType('video/webm; codecs="vp9"') ? set.webm : set.mp4;
+      // Safari (macOS and iOS) gets H.264: hardware-decoded and seekable
+      // frame by frame. Its VP9 support is newer and seeks poorly.
+      video.src = !apple && video.canPlayType('video/webm; codecs="vp9"') ? set.webm : set.mp4;
+      // Safari loads little more than metadata otherwise and the scrub shows
+      // the poster; other browsers fetch ranges as the user scrolls, so they
+      // keep preload="none" and do not spend 3-5 MB of mobile data up front.
+      if (apple) video.preload = "auto";
       video.load();
     };
+    // iOS may not paint seeked frames of a video that never played: start and
+    // immediately pause it once (muted + playsInline is allowed; in Low Power
+    // Mode it is refused and the poster stays). Only on Safari: in Chrome a
+    // play() turns into a full download of the file.
+    const onMeta = () => { if (apple) video.play().then(() => video.pause()).catch(() => {}); };
     const onData = () => { setReady(true); requestSeek(); };
+    video.addEventListener("loadedmetadata", onMeta, { once: true });
     video.addEventListener("loadeddata", onData);
     const idle = (cb: () => void) => {
       const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
@@ -72,6 +91,7 @@ export function ScrubVideo({ triggerRef, poster, sources, className }: Props) {
       cancelAnimationFrame(raf);
       st?.kill();
       video.removeEventListener("loadeddata", onData);
+      video.removeEventListener("loadedmetadata", onMeta);
     };
   }, [triggerRef, sources]);
 
