@@ -4,6 +4,7 @@
 #   2. intercambio .next → .next-prev, .next-build → .next
 #   3. reinicio del proceso (systemd zu360-frontend lo relanza en ~5 s)
 #   4. verificación; si falla, revierte solo.
+# El commit desplegado queda en frontend/web/.next/REVISION ("<sha> <fecha UTC>").
 #   ./scripts/deploy-frontend.sh            despliega
 #   ./scripts/deploy-frontend.sh rollback   vuelve a la versión anterior
 set -euo pipefail
@@ -18,13 +19,20 @@ if [ "${1:-}" = rollback ]; then
   [ -d .next-prev ] || { echo "no hay versión anterior"; exit 1; }
   mv .next .next-failed && mv .next-prev .next && restart && echo "revertido"; exit 0
 fi
+# Solo se despliega un commit: con cambios sin commitear no habría forma de
+# saber después qué código está sirviendo el dominio.
+if [ -n "$(git status --porcelain -- . ../../scripts/deploy-frontend.sh)" ]; then
+  echo "hay cambios sin commitear en frontend/web: commitee antes de desplegar"; exit 1
+fi
+rev=$(git rev-parse HEAD)
 rm -rf .next-build
 NEXT_DIST_DIR=.next-build npx next build
+echo "$rev $(date -u +%FT%TZ)" > .next-build/REVISION
 rm -rf .next-prev .next-failed
 mv .next .next-prev
 mv .next-build .next
 if restart && curl -sf -o /dev/null http://localhost:3000/dashboard; then
-  echo "OK: desplegado ($(date -u +%FT%TZ)); anterior en .next-prev"
+  echo "OK: desplegado commit $rev ($(date -u +%FT%TZ)); anterior en .next-prev"
 else
   echo "FALLÓ el arranque: revirtiendo"; mv .next .next-failed; mv .next-prev .next; restart; exit 1
 fi
