@@ -2,6 +2,9 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 
 	vault "github.com/hashicorp/vault/api"
 )
@@ -15,6 +18,15 @@ import (
 func (c *Config) LoadVaultSecrets() error {
 	if !c.VaultEnabled {
 		return nil
+	}
+	// The token normally arrives as a Docker secret file, so it never sits in
+	// an env file or in `docker inspect` output.
+	if f := os.Getenv("VAULT_TOKEN_FILE"); f != "" {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			return fmt.Errorf("vault token file: %w", err)
+		}
+		c.VaultToken = strings.TrimSpace(string(raw))
 	}
 	client, err := vault.NewClient(&vault.Config{Address: c.VaultAddr})
 	if err != nil {
@@ -53,12 +65,34 @@ func (c *Config) LoadVaultSecrets() error {
 	}
 
 	optional := map[string]*string{
-		"wompi_key":           &c.WompiKey,
-		"wompi_events_secret": &c.WompiEventsSecret,
+		"wompi_public_key":       &c.WompiPublicKey,
+		"wompi_private_key":      &c.WompiPrivateKey,
+		"wompi_events_secret":    &c.WompiEventsSecret,
+		"wompi_integrity_secret": &c.WompiIntegritySecret,
+		"dian_issuer_nit":        &c.DianIssuerNIT,
+		"dian_issuer_name":       &c.DianIssuerName,
+		"dian_issuer_address":    &c.DianIssuerAddress,
+		"dian_resolution":        &c.DianResolution,
+		"dian_prefix":            &c.DianPrefix,
+		"dian_technical_key":     &c.DianTechnicalKey,
+		"dian_valid_from":        &c.DianValidFrom,
+		"dian_valid_to":          &c.DianValidTo,
+		"dian_software_id":       &c.DianSoftwareID,
+		"dian_software_pin":      &c.DianSoftwarePIN,
+		"dian_env":               &c.DianEnv,
 	}
 	for key, target := range optional {
 		if value, ok := data[key].(string); ok && value != "" {
 			*target = value
+		}
+	}
+	for key, target := range map[string]*int64{"dian_from": &c.DianFrom, "dian_to": &c.DianTo} {
+		if raw, ok := data[key].(string); ok && raw != "" {
+			n, err := strconv.ParseInt(raw, 10, 64)
+			if err != nil {
+				return fmt.Errorf("vault key %s is not an integer", key)
+			}
+			*target = n
 		}
 	}
 	return nil

@@ -7,20 +7,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/zu-seguridad/billing/internal/model"
 	"gorm.io/gorm"
 )
 
-// OutboxRelay is not started by the service entrypoint until publisher confirms,
-// transactional enqueue coverage and downstream idempotency are tested.
-type OutboxRelay struct {
-	db *gorm.DB
-	ch *amqp.Channel
+// Publisher is satisfied by bus.Publisher (reconnecting, persistent messages).
+type Publisher interface {
+	Publish(ctx context.Context, exchange, key string, body []byte) error
 }
 
-func NewOutboxRelay(db *gorm.DB, ch *amqp.Channel) *OutboxRelay {
-	return &OutboxRelay{db: db, ch: ch}
+// OutboxRelay publishes events written in the same DB transaction as the
+// state change that produced them (Enqueue), so a payment is never recorded
+// without its event, nor an event sent for a payment that rolled back.
+// Consumers must be idempotent: a crash between publish and the status
+// update re-sends the event (at-least-once).
+type OutboxRelay struct {
+	db  *gorm.DB
+	pub Publisher
+}
+
+func NewOutboxRelay(db *gorm.DB, pub Publisher) *OutboxRelay {
+	return &OutboxRelay{db: db, pub: pub}
 }
 
 func (r *OutboxRelay) Enqueue(tx *gorm.DB, tenantID uuid.UUID, exchange, routingKey string, payload interface{}) error {
@@ -53,7 +60,7 @@ func (r *OutboxRelay) Run(ctx context.Context) {
 }
 
 func (r *OutboxRelay) publishPending(ctx context.Context) {
-	if r.ch == nil {
+	if r.pub == nil {
 		return
 	}
 	var events []model.OutboxEvent
@@ -65,12 +72,10 @@ func (r *OutboxRelay) publishPending(ctx context.Context) {
 	}
 
 	for _, evt := range events {
+		evt.Payload["event_id"] = evt.ID.String()
 		body, err := json.Marshal(evt.Payload)
 		if err == nil {
-			err = r.ch.Publish(evt.Exchange, evt.RoutingKey, false, false, amqp.Publishing{
-				ContentType: "application/json", Body: body,
-				DeliveryMode: amqp.Persistent, MessageId: evt.ID.String(),
-			})
+			err = r.pub.Publish(ctx, evt.Exchange, evt.RoutingKey, body)
 		}
 		now := time.Now()
 		if err != nil {

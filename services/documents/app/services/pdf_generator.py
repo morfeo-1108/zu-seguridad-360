@@ -13,7 +13,10 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from reportlab.pdfgen import canvas
 import qrcode
+from reportlab.lib.utils import ImageReader
 import io
+from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
+import os
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -30,6 +33,7 @@ ZU_DANGER  = HexColor("#DC2626")
 def generate_header_footer(canvas_obj, doc, company_name: str, doc_title: str, version: str = "v1.0"):
     """Encabezado y pie de página corporativo en cada hoja."""
     canvas_obj.saveState()
+    company_name, doc_title = xml_unescape(company_name), xml_unescape(doc_title)
 
     # Header
     canvas_obj.setFillColor(ZU_BLUE)
@@ -64,8 +68,44 @@ def generate_qr_code(data: str) -> io.BytesIO:
     return buf
 
 
+# Verificación pública de certificados: página /verify/<folio> del frontend,
+# que consulta Core.
+PUBLIC_APP_URL = os.getenv("PUBLIC_APP_URL", "https://www.zuseguridad360.com").rstrip("/")
+
+# Catálogo real. "estructurada": plantilla con secciones y formato propios.
+# "generica": encabezado + título + el texto que envíe el usuario (no redacta nada).
+TEMPLATES = {
+    "politica_sst": {"title": "Política de Seguridad y Salud en el Trabajo", "kind": "estructurada"},
+    "acta_copasst": {"title": "Acta de reunión COPASST", "kind": "estructurada"},
+    "certificado_capacitacion": {"title": "Certificado de capacitación", "kind": "estructurada"},
+    "furat": {"title": "FURAT (borrador, no se transmite a la ARL)", "kind": "estructurada"},
+    "matriz_riesgos": {"title": "Matriz de Riesgos GTC 45", "kind": "generica"},
+    "programa_capacitacion": {"title": "Programa Anual de Capacitaciones", "kind": "generica"},
+    "informe_indicadores": {"title": "Informe de Indicadores SST", "kind": "generica"},
+    "plan_emergencias": {"title": "Plan de Emergencias", "kind": "generica"},
+    "reglamento_higiene": {"title": "Reglamento de Higiene y Seguridad Industrial", "kind": "generica"},
+    "permiso_alturas": {"title": "Permiso de Trabajo en Alturas", "kind": "generica"},
+    "acta_entrega_epp": {"title": "Acta de Entrega de EPP", "kind": "generica"},
+    "informe_investigacion": {"title": "Informe de Investigación de Accidente", "kind": "generica"},
+    "checklist_inspeccion": {"title": "Checklist de Inspección de Seguridad", "kind": "generica"},
+    "generico": {"title": "Documento SST", "kind": "generica"},
+}
+
+
+def _escape(value):
+    """ReportLab Paragraph text is XML-like markup: user text must be escaped
+    or a "<" breaks the PDF and tags like <link> become injectable."""
+    if isinstance(value, str):
+        return xml_escape(value)
+    if isinstance(value, list):
+        return [_escape(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _escape(v) for k, v in value.items()}
+    return value
+
+
 class DocumentGenerator:
-    """Generador principal para los 49 tipos de documentos SST."""
+    """Generador de los documentos SST listados en TEMPLATES."""
 
     GENERATORS = {
         "politica_sst": "_gen_politica_sst",
@@ -88,6 +128,9 @@ class DocumentGenerator:
         """Genera el PDF para el template especificado."""
         method_name = self.GENERATORS.get(template_key, "_gen_generic")
         method = getattr(self, method_name, self._gen_generic)
+        data = _escape(dict(data))
+        if method_name == "_gen_generic":
+            data.setdefault("title", TEMPLATES.get(template_key, TEMPLATES["generico"])["title"])
         return method(data, doc_id)
 
     def _gen_politica_sst(self, data: Dict, doc_id: str) -> bytes:
@@ -195,11 +238,10 @@ class DocumentGenerator:
         ]))
         story.append(firma_table)
 
-        # QR verificación
+        # Referencia de trazabilidad: el documento queda guardado con este id,
+        # su versión y su SHA-256 (no hay verificación pública de documentos aún).
         story.append(Spacer(1, 0.5*cm))
-        qr_buf = generate_qr_code(f"https://app.zu360.co/verify/doc/{doc_id}")
-        qr_img = Image(qr_buf, width=2*cm, height=2*cm)
-        story.append(Table([[qr_img, Paragraph(f"<font size='7' color='#6B7280'>Verificar autenticidad:<br/>app.zu360.co/verify/doc/{doc_id[:8]}...</font>", note_style)]], colWidths=[2.5*cm, 15*cm]))
+        story.append(Paragraph(f"<font size='7' color='#6B7280'>Referencia del documento: {doc_id}</font>", note_style))
 
         doc.build(story, onFirstPage=lambda c, d: generate_header_footer(c, d, company, "POLÍTICA SST"),
                         onLaterPages=lambda c, d: generate_header_footer(c, d, company, "POLÍTICA SST"))
@@ -275,6 +317,8 @@ class DocumentGenerator:
 
     def _gen_certificado(self, data: Dict, doc_id: str) -> bytes:
         """Genera certificado de capacitación con QR verificable."""
+        # Drawn with canvas text, not Paragraph markup: undo the escaping.
+        data = {k: xml_unescape(v) if isinstance(v, str) else v for k, v in data.items()}
         buf = io.BytesIO()
         c = canvas.Canvas(buf, pagesize=(29*cm, 21*cm))  # Landscape A4
 
@@ -371,8 +415,8 @@ class DocumentGenerator:
             c.drawCentredString(x + 3.5*cm, 5.7*cm, label)
 
         # QR
-        qr_buf = generate_qr_code(f"https://app.zu360.co/verify/cert/{data.get('folio', doc_id)}")
-        c.drawImage(qr_buf, 12.5*cm, 3.5*cm, width=2.5*cm, height=2.5*cm, mask="auto")
+        qr_buf = generate_qr_code(f"{PUBLIC_APP_URL}/verify/{data.get('folio', doc_id)}")
+        c.drawImage(ImageReader(qr_buf), 12.5*cm, 3.5*cm, width=2.5*cm, height=2.5*cm, mask="auto")
         c.setFont("Helvetica", 7)
         c.setFillColor(ZU_GRAY)
         c.drawCentredString(14.5*cm, 3.2*cm, "Escanee para verificar autenticidad")
@@ -441,16 +485,22 @@ class DocumentGenerator:
         return buf.getvalue()
 
     def _gen_generic(self, data: Dict, doc_id: str) -> bytes:
-        """Template genérico para documentos no implementados aún."""
+        """Encabezado de la empresa + título + el contenido que envió el usuario."""
         buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=A4)
+        doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=3*cm, bottomMargin=2.5*cm)
         styles = getSampleStyleSheet()
-        story = [
-            Paragraph(data.get("title", "Documento SST"), styles["Title"]),
-            Spacer(1, 0.5*cm),
-            Paragraph(data.get("content", "Contenido del documento"), styles["Normal"]),
-        ]
-        doc.build(story)
+        title = data.get("title", "Documento SST")
+        story = [Paragraph(title, styles["Title"]), Spacer(1, 0.3*cm)]
+        meta = " · ".join(x for x in [data.get("company_name", ""), f"NIT {data['nit']}" if data.get("nit") else ""] if x)
+        if meta:
+            story += [Paragraph(meta, styles["Normal"]), Spacer(1, 0.5*cm)]
+        for para in str(data.get("content", "")).split("\n\n"):
+            if para.strip():
+                story += [Paragraph(para.replace("\n", "<br/>"), styles["Normal"]), Spacer(1, 0.3*cm)]
+        story += [Spacer(1, 1*cm), Paragraph(f"Documento {doc_id[:8]} generado en ZU Seguridad Integral 360", styles["Italic"])]
+        company = data.get("company_name", "")
+        doc.build(story, onFirstPage=lambda c, d: generate_header_footer(c, d, company, title),
+                  onLaterPages=lambda c, d: generate_header_footer(c, d, company, title))
         return buf.getvalue()
 
     # Aliases

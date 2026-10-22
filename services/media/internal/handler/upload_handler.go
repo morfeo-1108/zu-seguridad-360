@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"log"
 	"mime"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,7 +40,22 @@ const MaxFileSize = 50 * 1024 * 1024 // 50MB
 type UploadHandler struct {
 	s3Client   *s3.Client
 	bucket     string
-	publicBase string // e.g. http://localhost:9000/<bucket> for a local S3-compatible endpoint; empty means real AWS S3
+	publicBase string // non-empty for an S3-compatible endpoint (MinIO): no Object Lock there
+	linkKey    []byte // HMAC key for short-lived download links
+}
+
+// FilesPath is the stable, browser-reachable reference stored by Core for an
+// uploaded object (served through the frontend's /api/media proxy). It only
+// works with a signature from POST /v1/files/link.
+const FilesPath = "/api/media/files/"
+
+var prefixRE = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
+
+// WithLinkSecret derives the download-link signing key from a service secret.
+func (h *UploadHandler) WithLinkSecret(secret string) *UploadHandler {
+	sum := sha256.Sum256([]byte("zu-media-download-link:" + secret))
+	h.linkKey = sum[:]
+	return h
 }
 
 // NewUploadHandler wires either a MinIO-style S3-compatible endpoint (when
@@ -114,6 +132,9 @@ func (h *UploadHandler) Upload(c *fiber.Ctx) error {
 	// Generar key S3
 	tenantID := c.Locals("tenant_id")
 	prefix := c.FormValue("prefix", "general")
+	if !prefixRE.MatchString(prefix) {
+		return fiber.NewError(fiber.StatusBadRequest, "prefix inválido")
+	}
 	isWORM := c.FormValue("worm", "false") == "true" // Para docs médicos: retención 20 años
 	fileID := uuid.New().String()
 	s3Key := fmt.Sprintf("%v/%s/%s/%s%s", tenantID, prefix, fileID[:8], fileID, ext)
@@ -133,8 +154,8 @@ func (h *UploadHandler) Upload(c *fiber.Ctx) error {
 				"uploaded-at":   time.Now().UTC().Format(time.RFC3339),
 			},
 		}
-		// Object Lock (retención WORM, 20 años para docs médicos per Res.
-		// 2346/2007) requires the bucket itself to have Object Lock enabled
+		// Object Lock (retención WORM para historia clínica ocupacional; el plazo
+		// debe revisarse contra la Res. 1843 de 2025, que derogó la 2346/2007) requires the bucket itself to have Object Lock enabled
 		// at creation time — true on real S3 when provisioned that way, not
 		// true for the local MinIO container used in this pilot. Request it
 		// only against a real AWS endpoint; against MinIO it would just
@@ -148,14 +169,10 @@ func (h *UploadHandler) Upload(c *fiber.Ctx) error {
 			log.Printf("S3 upload error: %v", err)
 			return fiber.NewError(fiber.StatusInternalServerError, "error subiendo archivo")
 		}
-		if h.publicBase != "" {
-			fileURL = fmt.Sprintf("%s/%s", h.publicBase, s3Key)
-		} else {
-			fileURL = fmt.Sprintf("https://%s.s3.amazonaws.com/%s", h.bucket, s3Key)
-		}
+		fileURL = FilesPath + s3Key
 	} else {
-		// Dev: retornar URL ficticia
-		fileURL = fmt.Sprintf("http://localhost:9000/%s/%s", h.bucket, s3Key)
+		// No storage configured: refuse instead of returning a URL to nothing.
+		return fiber.NewError(fiber.StatusServiceUnavailable, "almacenamiento de archivos no configurado")
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
@@ -179,4 +196,68 @@ func (h *UploadHandler) scanWithSophos(data []byte) (bool, string) {
 		return true, "Executable file blocked"
 	}
 	return false, ""
+}
+
+// keyFromRef accepts either a raw object key or a FilesPath URL.
+func keyFromRef(ref string) string {
+	if i := strings.Index(ref, FilesPath); i >= 0 {
+		ref = ref[i+len(FilesPath):]
+	}
+	if j := strings.IndexAny(ref, "?#"); j >= 0 {
+		ref = ref[:j]
+	}
+	return strings.TrimPrefix(ref, "/")
+}
+
+func (h *UploadHandler) sign(key string, exp int64) string {
+	m := hmac.New(sha256.New, h.linkKey)
+	fmt.Fprintf(m, "%s|%d", key, exp)
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// Link issues a 15-minute download link for an object of the caller's tenant.
+func (h *UploadHandler) Link(c *fiber.Ctx) error {
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.URL == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "url requerida")
+	}
+	key := keyFromRef(body.URL)
+	tenantID := fmt.Sprintf("%v", c.Locals("tenant_id"))
+	if tenantID == "" || strings.Contains(key, "..") || !strings.HasPrefix(key, tenantID+"/") {
+		return fiber.NewError(fiber.StatusNotFound, "archivo no encontrado")
+	}
+	exp := time.Now().Add(15 * time.Minute).Unix()
+	return c.JSON(fiber.Map{"url": fmt.Sprintf("%s%s?exp=%d&sig=%s", FilesPath, key, exp, h.sign(key, exp)), "expires_at": exp})
+}
+
+// Download streams an object given a valid, unexpired signature.
+func (h *UploadHandler) Download(c *fiber.Ctx) error {
+	if h.s3Client == nil || len(h.linkKey) == 0 {
+		return fiber.NewError(fiber.StatusServiceUnavailable, "almacenamiento no configurado")
+	}
+	key := strings.TrimPrefix(c.Params("*"), "/")
+	exp, err := strconv.ParseInt(c.Query("exp"), 10, 64)
+	if err != nil || time.Now().Unix() > exp || strings.Contains(key, "..") ||
+		!hmac.Equal([]byte(h.sign(key, exp)), []byte(c.Query("sig"))) {
+		return fiber.NewError(fiber.StatusForbidden, "enlace inválido o vencido")
+	}
+	obj, err := h.s3Client.GetObject(c.Context(), &s3.GetObjectInput{Bucket: aws.String(h.bucket), Key: aws.String(key)})
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "archivo no encontrado")
+	}
+	defer obj.Body.Close()
+	data, err := io.ReadAll(obj.Body)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadGateway, "error leyendo archivo")
+	}
+	ctype := aws.ToString(obj.ContentType)
+	c.Set("Content-Type", ctype)
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set("Cache-Control", "private, max-age=300")
+	if !strings.HasPrefix(ctype, "image/") {
+		c.Set("Content-Disposition", "attachment")
+	}
+	return c.Send(data)
 }

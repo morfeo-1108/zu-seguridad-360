@@ -1,24 +1,23 @@
 package service
 
 import (
-	"context"
-	"encoding/json"
+	"crypto/rand"
+	"crypto/tls"
+	"encoding/hex"
+	"errors"
 	"fmt"
-	"log"
+	"html"
+	"mime"
+	"net"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
 )
 
-type MailProvider string
-
-const (
-	ProviderSendGrid MailProvider = "sendgrid"
-	ProviderMailgun  MailProvider = "mailgun"
-	ProviderSES      MailProvider = "ses"
-	ProviderSMTP     MailProvider = "smtp"
-)
-
+// MailMessage is the contract shared by the HTTP endpoint and the
+// zu.mail.outbound queue. Recipients and subject are validated before any
+// SMTP traffic: a CR/LF in either would let a caller inject headers.
 type MailMessage struct {
 	To          []string          `json:"to"`
 	CC          []string          `json:"cc"`
@@ -27,140 +26,278 @@ type MailMessage struct {
 	BodyText    string            `json:"body_text"`
 	TemplateKey string            `json:"template_key"`
 	Variables   map[string]string `json:"variables"`
-	AttachURLs  []string          `json:"attach_urls"`
+	Items       []string          `json:"items"` // rendered, escaped, as a <ul> in place of {{items}}
 	TenantID    string            `json:"tenant_id"`
 	CompanyID   string            `json:"company_id"`
-	Priority    int               `json:"priority"` // 1=high, 2=normal, 3=low
 }
 
 type SendResult struct {
 	MessageID string
-	Provider  MailProvider
 	SentAt    time.Time
-	Error     error
+}
+
+// ErrPermanent marks failures that retrying cannot fix (bad address, unknown
+// template); the queue consumer dead-letters these immediately.
+var ErrPermanent = errors.New("permanent mail failure")
+
+type SMTPConfig struct {
+	Host, Port, User, Pass string
+	TLSMode                string // starttls | tls | none
+	FromEmail, FromName    string
 }
 
 type MailerService struct {
-	providers []MailProvider
-	smtpHost  string
-	smtpPort  string
-	smtpUser  string
-	smtpPass  string
-	fromEmail string
-	fromName  string
+	cfg  SMTPConfig
+	dial func(addr string) (smtpClient, error) // overridable in tests
 }
 
-func NewMailerService(cfg map[string]string) *MailerService {
-	return &MailerService{
-		providers: []MailProvider{ProviderSendGrid, ProviderSMTP},
-		smtpHost:  cfg["smtp_host"],
-		smtpPort:  cfg["smtp_port"],
-		smtpUser:  cfg["smtp_user"],
-		smtpPass:  cfg["smtp_pass"],
-		fromEmail: cfg["from_email"],
-		fromName:  cfg["from_name"],
-	}
+func NewMailerService(cfg SMTPConfig) *MailerService {
+	s := &MailerService{cfg: cfg}
+	s.dial = s.defaultDial
+	return s
 }
 
-func (s *MailerService) Send(ctx context.Context, msg MailMessage) SendResult {
-	// Aplicar template si se especificó
-	if msg.TemplateKey != "" {
-		msg = s.applyTemplate(msg)
-	}
-
-	// Intentar proveedores en orden (fallback automático)
-	for _, provider := range s.providers {
-		result := s.sendViaProvider(ctx, msg, provider)
-		if result.Error == nil {
-			log.Printf("📧 Email enviado via %s a %v: %s", provider, msg.To, msg.Subject)
-			return result
-		}
-		log.Printf("⚠️ Provider %s failed, trying next: %v", provider, result.Error)
-	}
-
-	return SendResult{Error: fmt.Errorf("all mail providers failed")}
-}
-
-func (s *MailerService) sendViaProvider(ctx context.Context, msg MailMessage, provider MailProvider) SendResult {
-	switch provider {
-	case ProviderSMTP:
-		return s.sendSMTP(msg)
-	default:
-		return SendResult{Error: fmt.Errorf("provider %s not configured", provider)}
-	}
-}
-
-func (s *MailerService) sendSMTP(msg MailMessage) SendResult {
-	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, s.smtpHost)
-
-	header := fmt.Sprintf(
-		"From: %s <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n",
-		s.fromName, s.fromEmail, strings.Join(msg.To, ", "), msg.Subject,
-	)
-	body := header + msg.BodyHTML
-
-	addr := fmt.Sprintf("%s:%s", s.smtpHost, s.smtpPort)
-	err := smtp.SendMail(addr, auth, s.fromEmail, msg.To, []byte(body))
+func (s *MailerService) Send(msg MailMessage) (SendResult, error) {
+	msg, err := s.prepare(msg)
 	if err != nil {
-		return SendResult{Error: err}
+		return SendResult{}, err
 	}
-	return SendResult{Provider: ProviderSMTP, SentAt: time.Now()}
+	id := newMessageID(s.cfg.FromEmail)
+	raw := s.render(msg, id)
+	rcpts := append(append([]string{}, msg.To...), msg.CC...)
+	if err := s.deliver(rcpts, raw); err != nil {
+		return SendResult{}, err
+	}
+	return SendResult{MessageID: id, SentAt: time.Now()}, nil
 }
 
-// Templates SST predefinidos
-var emailTemplates = map[string]struct{ Subject, Body string }{
-	"welcome": {
-		Subject: "Bienvenido a ZU Seguridad Integral 360 — {{company_name}}",
-		Body:    `<h2>Bienvenido, {{contact_name}}</h2><p>Su empresa <strong>{{company_name}}</strong> ha sido registrada exitosamente en ZU Seguridad Integral 360.</p><p>Su profesional SST asignada es <strong>{{sst_name}}</strong>.</p>`,
-	},
-	"cert_expiring": {
-		Subject: "⏰ Certificado próximo a vencer — {{employee_name}}",
-		Body:    `<p>El certificado de <strong>{{cert_type}}</strong> del empleado <strong>{{employee_name}}</strong> vence el <strong>{{expiry_date}}</strong>.</p><p>Por favor gestione la renovación a la brevedad.</p>`,
-	},
-	"incident_reported": {
-		Subject: "🚨 Nuevo incidente reportado — {{company_name}}",
-		Body:    `<p>Se ha reportado un nuevo incidente en <strong>{{company_name}}</strong>.</p><p><strong>Tipo:</strong> {{incident_type}}<br><strong>Descripción:</strong> {{description}}<br><strong>Fecha:</strong> {{date}}</p>`,
-	},
-	"monthly_report": {
-		Subject: "📊 Informe SST mensual — {{company_name}} — {{month}}",
-		Body:    `<h2>Informe Mensual SST</h2><p>Adjunto encontrará el informe de indicadores SST correspondiente a {{month}}.</p><p><strong>IF:</strong> {{if_value}} | <strong>IS:</strong> {{is_value}} | <strong>Cumplimiento:</strong> {{compliance}}%</p>`,
-	},
-	"furat_sent": {
-		Subject: "📋 FURAT enviado a ARL {{arl_name}} — {{company_name}}",
-		Body:    `<p>El Formulario Único de Reporte de Accidente de Trabajo (FURAT) ha sido enviado exitosamente a <strong>{{arl_name}}</strong>.</p><p>Número de radicado: <strong>{{furat_number}}</strong></p>`,
-	},
-}
-
-func (s *MailerService) applyTemplate(msg MailMessage) MailMessage {
-	tpl, ok := emailTemplates[msg.TemplateKey]
-	if !ok {
-		return msg
+func (s *MailerService) prepare(msg MailMessage) (MailMessage, error) {
+	if msg.TemplateKey != "" {
+		tpl, ok := emailTemplates[msg.TemplateKey]
+		if !ok {
+			return msg, fmt.Errorf("%w: unknown template %q", ErrPermanent, msg.TemplateKey)
+		}
+		msg.Subject = fill(tpl.Subject, msg.Variables, false)
+		msg.BodyHTML = strings.ReplaceAll(fill(tpl.Body, msg.Variables, true), "{{items}}", itemList(msg.Items))
+		msg.BodyText = ""
 	}
-
-	subject := tpl.Subject
-	body := tpl.Body
-	for k, v := range msg.Variables {
-		subject = strings.ReplaceAll(subject, "{{"+k+"}}", v)
-		body = strings.ReplaceAll(body, "{{"+k+"}}", v)
+	if len(msg.To) == 0 {
+		return msg, fmt.Errorf("%w: no recipients", ErrPermanent)
 	}
-	msg.Subject = subject
-	msg.BodyHTML = body
-	return msg
-}
-
-// ConsumeQueue procesa mensajes de la cola RabbitMQ
-func (s *MailerService) ConsumeQueue(ctx context.Context, msgs <-chan []byte) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case raw := <-msgs:
-			var msg MailMessage
-			if err := json.Unmarshal(raw, &msg); err != nil {
-				log.Printf("Invalid mail message: %v", err)
-				continue
+	for _, list := range [][]string{msg.To, msg.CC} {
+		for _, a := range list {
+			if err := validAddress(a); err != nil {
+				return msg, err
 			}
-			s.Send(ctx, msg)
 		}
 	}
+	if strings.TrimSpace(msg.Subject) == "" || strings.ContainsAny(msg.Subject, "\r\n") {
+		return msg, fmt.Errorf("%w: subject is empty or contains line breaks", ErrPermanent)
+	}
+	if msg.BodyHTML == "" && msg.BodyText == "" {
+		return msg, fmt.Errorf("%w: empty body", ErrPermanent)
+	}
+	return msg, nil
+}
+
+func validAddress(a string) error {
+	if strings.ContainsAny(a, "\r\n,;<>") {
+		return fmt.Errorf("%w: invalid recipient %q", ErrPermanent, a)
+	}
+	parsed, err := mail.ParseAddress(a)
+	if err != nil || parsed.Address != a {
+		return fmt.Errorf("%w: invalid recipient %q", ErrPermanent, a)
+	}
+	return nil
+}
+
+func (s *MailerService) render(msg MailMessage, id string) []byte {
+	boundary := "zu-" + randHex(12)
+	from := mail.Address{Name: s.cfg.FromName, Address: s.cfg.FromEmail}
+	var b strings.Builder
+	h := func(k, v string) { b.WriteString(k + ": " + v + "\r\n") }
+	h("From", from.String())
+	h("To", strings.Join(msg.To, ", "))
+	if len(msg.CC) > 0 {
+		h("Cc", strings.Join(msg.CC, ", "))
+	}
+	h("Subject", mime.QEncoding.Encode("utf-8", msg.Subject))
+	h("Date", time.Now().Format(time.RFC1123Z))
+	h("Message-ID", id)
+	h("MIME-Version", "1.0")
+	h("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
+	b.WriteString("\r\n")
+
+	text := msg.BodyText
+	if text == "" {
+		text = htmlToText(msg.BodyHTML)
+	}
+	part := func(ctype, body string) {
+		b.WriteString("--" + boundary + "\r\n")
+		b.WriteString("Content-Type: " + ctype + "; charset=UTF-8\r\n")
+		b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+		b.WriteString(strings.ReplaceAll(body, "\n", "\r\n") + "\r\n")
+	}
+	part("text/plain", text)
+	if msg.BodyHTML != "" {
+		part("text/html", msg.BodyHTML)
+	}
+	b.WriteString("--" + boundary + "--\r\n")
+	return []byte(b.String())
+}
+
+// smtpClient is the subset of *smtp.Client used, so tests can fake a server.
+type smtpClient interface {
+	Hello(string) error
+	Extension(string) (bool, string)
+	StartTLS(*tls.Config) error
+	Auth(smtp.Auth) error
+	Mail(string) error
+	Rcpt(string) error
+	Data() (interface {
+		Write([]byte) (int, error)
+		Close() error
+	}, error)
+	Quit() error
+	Close() error
+}
+
+type stdClient struct{ *smtp.Client }
+
+func (c stdClient) Data() (interface {
+	Write([]byte) (int, error)
+	Close() error
+}, error) {
+	return c.Client.Data()
+}
+
+func (s *MailerService) defaultDial(addr string) (smtpClient, error) {
+	if s.cfg.TLSMode == "tls" {
+		conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 15 * time.Second}, "tcp", addr, &tls.Config{ServerName: s.cfg.Host})
+		if err != nil {
+			return nil, err
+		}
+		c, err := smtp.NewClient(conn, s.cfg.Host)
+		if err != nil {
+			return nil, err
+		}
+		return stdClient{c}, nil
+	}
+	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	c, err := smtp.NewClient(conn, s.cfg.Host)
+	if err != nil {
+		return nil, err
+	}
+	return stdClient{c}, nil
+}
+
+func (s *MailerService) deliver(rcpts []string, raw []byte) error {
+	c, err := s.dial(net.JoinHostPort(s.cfg.Host, s.cfg.Port))
+	if err != nil {
+		return fmt.Errorf("smtp connect: %w", err)
+	}
+	defer c.Close()
+	if err := c.Hello("zuseguridad360.com"); err != nil {
+		return fmt.Errorf("smtp hello: %w", err)
+	}
+	if s.cfg.TLSMode == "starttls" {
+		// Never downgrade: a server that does not offer STARTTLS gets no mail
+		// and, above all, no credentials.
+		if ok, _ := c.Extension("STARTTLS"); !ok {
+			return fmt.Errorf("smtp server %s does not offer STARTTLS", s.cfg.Host)
+		}
+		if err := c.StartTLS(&tls.Config{ServerName: s.cfg.Host}); err != nil {
+			return fmt.Errorf("smtp starttls: %w", err)
+		}
+	}
+	if s.cfg.User != "" {
+		if s.cfg.TLSMode == "none" {
+			return fmt.Errorf("refusing to send SMTP credentials over an unencrypted connection")
+		}
+		if err := c.Auth(smtp.PlainAuth("", s.cfg.User, s.cfg.Pass, s.cfg.Host)); err != nil {
+			return fmt.Errorf("smtp auth: %w", err)
+		}
+	}
+	if err := c.Mail(s.cfg.FromEmail); err != nil {
+		return fmt.Errorf("smtp mail from: %w", err)
+	}
+	for _, r := range rcpts {
+		if err := c.Rcpt(r); err != nil {
+			return fmt.Errorf("smtp rcpt %s: %w", r, err)
+		}
+	}
+	w, err := c.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data: %w", err)
+	}
+	if _, err := w.Write(raw); err != nil {
+		return fmt.Errorf("smtp write: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("smtp data close: %w", err)
+	}
+	return c.Quit()
+}
+
+// fill substitutes {{var}} placeholders. Values going into HTML are escaped:
+// they come from tenant data (company names, incident descriptions) and must
+// not be able to inject markup into a mail the recipient trusts.
+func fill(tpl string, vars map[string]string, escape bool) string {
+	for k, v := range vars {
+		if escape {
+			v = html.EscapeString(v)
+		} else {
+			v = strings.NewReplacer("\r", " ", "\n", " ").Replace(v)
+		}
+		tpl = strings.ReplaceAll(tpl, "{{"+k+"}}", v)
+	}
+	return tpl
+}
+
+func itemList(items []string) string {
+	if len(items) == 0 {
+		return "<p>Sin novedades.</p>"
+	}
+	var b strings.Builder
+	b.WriteString("<ul>")
+	for _, it := range items {
+		b.WriteString("<li>" + html.EscapeString(it) + "</li>")
+	}
+	b.WriteString("</ul>")
+	return b.String()
+}
+
+func htmlToText(h string) string {
+	r := strings.NewReplacer("<br>", "\n", "<br/>", "\n", "</p>", "\n\n", "</h2>", "\n\n", "</li>", "\n")
+	s := r.Replace(h)
+	var b strings.Builder
+	in := false
+	for _, ch := range s {
+		switch {
+		case ch == '<':
+			in = true
+		case ch == '>':
+			in = false
+		case !in:
+			b.WriteRune(ch)
+		}
+	}
+	return strings.TrimSpace(html.UnescapeString(b.String()))
+}
+
+func newMessageID(from string) string {
+	domain := "zuseguridad360.com"
+	if i := strings.LastIndex(from, "@"); i >= 0 {
+		domain = from[i+1:]
+	}
+	return "<" + randHex(16) + "@" + domain + ">"
+}
+
+func randHex(n int) string {
+	b := make([]byte, n)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }

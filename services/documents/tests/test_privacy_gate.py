@@ -13,7 +13,9 @@ def test_health_is_allowed():
         "/v1/documents/generate",
         "/v1/documents/generate/inline",
         "/v1/certificates/generate",
-        "/v1/certificates/verify/demo-folio",
+        "/v1/documents",
+        "/v1/documents/templates",
+        "/v1/documents/0a0a0a0a-0000-4000-8000-000000000001/download",
         "/v1/reports/monthly/generate",
         "/v1/reports/res0312/generate",
     ],
@@ -25,6 +27,6 @@ def test_generation_and_public_verification_routes_are_open(path):
     assert documents_path_enabled(path) is True
 
 
-@pytest.mark.parametrize("path", ["/openapi.json", "/docs", "/unknown"])
+@pytest.mark.parametrize("path", ["/openapi.json", "/docs", "/unknown", "/v1/certificates/verify/demo-folio"])
 def test_api_discovery_and_unknown_routes_stay_closed(path):
     assert documents_path_enabled(path) is False

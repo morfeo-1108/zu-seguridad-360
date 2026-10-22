@@ -666,3 +666,72 @@ export const billingAPI = {
   subscribe: (tenantId: string, planCode: string, wantsFounder: boolean) =>
     api.post<SubscriptionAPIRecord>(`/api/billing/tenants/${tenantId}/subscription`, { plan_code: planCode, wants_founder: wantsFounder }),
 };
+
+// ── Servicios de la Línea A (notifications, SLA, onboarding, autopilot) ──
+
+export interface NotificationRecord {
+  id: string; kind: string; title: string; message: string; priority: string;
+  link?: string; read_at: string | null; created_at: string; company_id?: string;
+}
+export const notificationAPI = {
+  list: (unread = false) => api.get<{ items: NotificationRecord[]; unread: number }>(`/api/notifications/me/notifications${unread ? "?unread=true" : ""}`),
+  read: (id: string) => api.post(`/api/notifications/me/notifications/${id}/read`),
+  readAll: () => api.post<{ updated: number }>(`/api/notifications/me/notifications/read-all`),
+};
+
+export interface SLASummary { open: number; breached_open: number; closed_last_30d: number; closed_on_time_last_30d: number; compliance_pct_last_30d: number | null }
+export interface SLAEventRecord { id: string; company_id: string; company_name: string; kind: string; resource_label: string; opened_at: string; due_at: string; closed_at: string | null; breached_at: string | null }
+export const slaAPI = {
+  summary: () => api.get<SLASummary>(`/api/sla/summary`),
+  events: (status: "open" | "breached" | "closed" | "" = "open") => api.get<{ data: SLAEventRecord[] }>(`/api/sla/events${status ? `?status=${status}` : ""}`),
+};
+
+export interface OnboardingStep { key: string; title: string; description: string; link: string; status: "done" | "pending" | "blocked"; count: number; done_at?: string; blocked_reason?: string }
+export interface OnboardingProgress { company_id: string; started_at: string; completed_at: string | null; done: number; total: number; steps: OnboardingStep[]; elapsed_hours: number }
+export const onboardingAPI = {
+  progress: () => api.get<OnboardingProgress>(`/api/onboarding/progress`),
+  portfolio: () => api.get<{ data: OnboardingProgress[] }>(`/api/onboarding/portfolio`),
+};
+
+export interface BriefingItem { company_id: string; company_name: string; kind: string; severity: "high" | "medium" | "low"; text: string; basis?: string; link: string }
+export interface BriefingRecord { id: string; day: string; companies: number; items: BriefingItem[]; generated_at: string; notified_at: string | null }
+export const briefingAPI = {
+  today: () => api.get<BriefingRecord>(`/api/autopilot/briefing/today`),
+  refresh: () => api.post<BriefingRecord>(`/api/autopilot/briefing/refresh`),
+};
+
+/** Signed, short-lived link for a stored file (media service). */
+export const fileLinkAPI = {
+  sign: (url: string) => api.post<{ url: string; expires_at: number }>(`/api/media/files/link`, { url }),
+};
+
+// ── Documentos generados (servicio documents) ──
+export interface GeneratedDocRecord { id: string; template_key: string; title: string; version: number; sha256: string; size_bytes: number; created_by: string; created_at: string; download_url: string }
+export interface TemplateRecord { key: string; title: string; kind: "estructurada" | "generica" }
+export const generatedDocAPI = {
+  templates: () => api.get<{ templates: TemplateRecord[] }>(`/api/docs/documents/templates`),
+  list: () => api.get<{ data: GeneratedDocRecord[] }>(`/api/docs/documents`),
+  generate: (templateKey: string, data: Record<string, string>) => api.post<GeneratedDocRecord>(`/api/docs/documents/generate`, { template_key: templateKey, data }),
+  download: (id: string) => api.get<Blob>(`/api/docs/documents/${id}/download`, { responseType: "blob" }),
+};
+
+// ── Cobro (billing: perfil fiscal, facturas, Wompi, factura electrónica) ──
+export interface BillingProfileRecord { tenant_id?: string; id_type: "13" | "31"; id_number: string; dv?: string; legal_name: string; email: string; address?: string; city?: string }
+export interface InvoiceRecord { id: string; dian_number: string; status: "pending" | "paid" | "overdue" | "voided"; subtotal: number; iva: number; total: number; period_start: string; period_end: string; due_at: string; paid_at: string | null; wompi_tx_id: string }
+export interface ElectronicInvoiceRecord { id: string; number: string; environment: string; cufe: string; status: string; status_detail: string; issued_at: string }
+export const paymentsAPI = {
+  getProfile: (tenantId: string) => api.get<BillingProfileRecord>(`/api/billing/tenants/${tenantId}/billing-profile`),
+  saveProfile: (tenantId: string, p: BillingProfileRecord) => api.put<BillingProfileRecord>(`/api/billing/tenants/${tenantId}/billing-profile`, p),
+  invoices: (tenantId: string) => api.get<{ data: InvoiceRecord[] }>(`/api/billing/tenants/${tenantId}/invoices`),
+  issue: (tenantId: string) => api.post<InvoiceRecord>(`/api/billing/tenants/${tenantId}/invoices`),
+  checkout: (tenantId: string, invoiceId: string) => api.post<{ checkout_url: string; reference: string; environment: string }>(`/api/billing/tenants/${tenantId}/invoices/${invoiceId}/checkout`),
+  electronic: (tenantId: string, invoiceId: string) => api.get<ElectronicInvoiceRecord>(`/api/billing/tenants/${tenantId}/invoices/${invoiceId}/electronic`),
+  retryElectronic: (tenantId: string, invoiceId: string) => api.post<ElectronicInvoiceRecord>(`/api/billing/tenants/${tenantId}/invoices/${invoiceId}/electronic/retry`),
+};
+
+// ── Consulta normativa (servicio ai, RAG de recuperación) ──
+export interface NormSource { norm: string; reference: string; article_title: string; status: string; source_url: string; text: string; citation: string }
+export interface NormAnswer { question: string; sources: NormSource[]; warnings: string[]; note: string }
+export const normativeAPI = {
+  query: (question: string) => api.post<NormAnswer>(`/api/ai/rag/query`, { question, top_k: 3 }),
+};

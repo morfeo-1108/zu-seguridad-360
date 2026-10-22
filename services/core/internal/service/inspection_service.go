@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,9 +12,44 @@ import (
 	"gorm.io/gorm"
 )
 
-type InspectionService struct{ db *gorm.DB }
+type InspectionService struct {
+	db     *gorm.DB
+	events EventPublisher
+}
 
 func NewInspectionService(db *gorm.DB) *InspectionService { return &InspectionService{db: db} }
+
+// EventPublisher is satisfied by repository.RabbitMQ.
+type EventPublisher interface {
+	Publish(exchange, routingKey string, body []byte) error
+}
+
+// WithEvents enables domain events on zu.companies: inspection.completed
+// (when there are findings to act on) and inspection.approved. services/sla
+// uses them to track the review deadline.
+func (s *InspectionService) WithEvents(p EventPublisher) *InspectionService {
+	s.events = p
+	return s
+}
+
+func (s *InspectionService) emit(ctx context.Context, key string, in *model.Inspection, actorID uuid.UUID) {
+	if s.events == nil {
+		return
+	}
+	var company struct{ Name string }
+	s.db.WithContext(ctx).Table("companies").Select("name").Where("id = ? AND tenant_id = ?", in.CompanyID, in.TenantID).Scan(&company)
+	var actor struct{ Email string }
+	s.db.WithContext(ctx).Table("users").Select("email").Where("id = ?", actorID).Scan(&actor)
+	body, _ := json.Marshal(map[string]interface{}{
+		"event_id": uuid.NewString(), "type": key, "occurred_at": time.Now().UTC(),
+		"tenant_id": in.TenantID, "company_id": in.CompanyID, "company_name": company.Name,
+		"resource_id": in.ID, "resource_label": in.Title, "findings": len(in.ActionPlan),
+		"actor_user_id": actorID, "actor_email": actor.Email,
+	})
+	if err := s.events.Publish("zu.companies", key, body); err != nil {
+		log.Printf("inspection event %s for %s not published: %v", key, in.ID, err)
+	}
+}
 
 type ChecklistItemInput struct {
 	Code        string `json:"code" validate:"required"`
@@ -67,7 +104,13 @@ func (s *InspectionService) Create(ctx context.Context, input CreateInspectionIn
 		InspectorID: inspectorID, PerformedAt: performedAt, Checklist: checklist,
 		CompliancePct: compliancePct, Status: model.InspectionStatusCompleted, ActionPlan: actionPlan,
 	}
-	return inspection, s.db.WithContext(ctx).Create(inspection).Error
+	if err := s.db.WithContext(ctx).Create(inspection).Error; err != nil {
+		return nil, err
+	}
+	if len(actionPlan) > 0 {
+		s.emit(ctx, "inspection.completed", inspection, inspectorID)
+	}
+	return inspection, nil
 }
 
 func (s *InspectionService) List(ctx context.Context, companyID, tenantID uuid.UUID) ([]model.Inspection, error) {
@@ -100,5 +143,9 @@ func (s *InspectionService) Approve(ctx context.Context, id, companyID, tenantID
 	if result.RowsAffected != 1 {
 		return nil, gorm.ErrRecordNotFound
 	}
-	return s.GetByID(ctx, id, companyID, tenantID)
+	inspection, err := s.GetByID(ctx, id, companyID, tenantID)
+	if err == nil {
+		s.emit(ctx, "inspection.approved", inspection, approvedBy)
+	}
+	return inspection, err
 }

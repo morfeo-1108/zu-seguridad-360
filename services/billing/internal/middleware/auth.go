@@ -39,6 +39,9 @@ func JWTProtected(cfg *config.Config) fiber.Handler {
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid token claims")
 		}
 		c.Locals("tenant_id", tenantID)
+		if email, ok := claims["email"].(string); ok {
+			c.Locals("email", email)
+		}
 		return c.Next()
 	}
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { alertAPI, attentionAPI, billingAPI, checklistTemplateAPI, committeeAPI, companyAPI, documentAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type DocumentAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PlanInfo, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type SubscriptionAPIRecord, type TrainingAPIRecord } from "./api";
+import { alertAPI, attentionAPI, billingAPI, briefingAPI, notificationAPI, onboardingAPI, slaAPI, checklistTemplateAPI, committeeAPI, companyAPI, documentAPI, employeeAPI, eppAPI, incidentAPI, inspectionAPI, legalMatrixAPI, managementAPI, medicalAPI, portfolioAPI, riskAPI, trainingAPI, zoneAPI, type AlertAPIRecord, type AttentionItemAPIRecord, type ChecklistTemplateAPIRecord, type CommitteeAPIRecord, type CompanyAPIRecord, type DocumentAPIRecord, type EmployeeAPIRecord, type EPPItemAPIRecord, type IncidentAPIRecord, type InspectionAPIRecord, type LegalRequirementAPIRecord, type ManagementSystemAPIRecord, type MedicalExamAPIRecord, type PlanInfo, type PortfolioCompanyRecord, type ProjectAPIRecord, type RiskEntryAPIRecord, type SubscriptionAPIRecord, type TrainingAPIRecord } from "./api";
 
 export type Company = CompanyAPIRecord;
 export type Employee = EmployeeAPIRecord;
@@ -140,6 +140,28 @@ export function useSubscription(tenantId: string) {
     queryFn: async () => {
       try { return (await billingAPI.getSubscription(tenantId)).data; }
       catch { return null; }
+    },
+  });
+}
+
+export function useNotifications() {
+  return useQuery({ queryKey: ["notifications"], queryFn: async () => (await notificationAPI.list()).data, refetchInterval: 60_000, retry: 1 });
+}
+
+export function useSLASummary() {
+  return useQuery({ queryKey: ["sla-summary"], queryFn: async () => (await slaAPI.summary()).data, retry: 1 });
+}
+
+export function useOnboardingProgress(companyId: string) {
+  return useQuery({ queryKey: ["onboarding", companyId], queryFn: async () => (await onboardingAPI.progress()).data, enabled: !!companyId, retry: 1 });
+}
+
+export function useBriefing() {
+  return useQuery({
+    queryKey: ["briefing"], retry: false,
+    queryFn: async () => {
+      try { return (await briefingAPI.today()).data; }
+      catch { return (await briefingAPI.refresh()).data; } // first visit: build it now
     },
   });
 }

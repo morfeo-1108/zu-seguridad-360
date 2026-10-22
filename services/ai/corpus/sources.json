@@ -1,0 +1,153 @@
+{
+ "_comment": "Corpus normativo SST indexado en Weaviate (ZUNormativaSST). Textos oficiales de normogramas públicos (Avance Jurídico) y SISJUR Bogotá. 'status' lo fija una persona revisando la fuente; el motor advierte cuando cita algo derogado. GTC 45 (ICONTEC) NO se incluye: es una guía con derechos de autor, sin texto público.",
+ "norms": [
+  {
+   "id": "ley_1562_2012",
+   "name": "Ley 1562 de 2012",
+   "issuer": "Congreso de la República",
+   "year": 2012,
+   "status": "vigente",
+   "topic": "Sistema General de Riesgos Laborales",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/ley_1562_2012.htm"
+  },
+  {
+   "id": "decreto_1072_2015",
+   "name": "Decreto 1072 de 2015",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2015,
+   "status": "vigente",
+   "topic": "Decreto Único Reglamentario del Sector Trabajo — Libro 2, Parte 2, Título 4 (Riesgos Laborales y SG-SST)",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/decreto_1072_2015.htm",
+   "article_prefix": "2.2.4."
+  },
+  {
+   "id": "resolucion_0312_2019",
+   "name": "Resolución 0312 de 2019",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2019,
+   "status": "vigente",
+   "topic": "Estándares Mínimos del SG-SST",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_mtra_0312_2019.htm"
+  },
+  {
+   "id": "decreto_1295_1994",
+   "name": "Decreto 1295 de 1994",
+   "issuer": "Ministerio de Gobierno",
+   "year": 1994,
+   "status": "vigente_parcial",
+   "topic": "Organización y administración del Sistema General de Riesgos Profesionales",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/decreto_1295_1994.htm"
+  },
+  {
+   "id": "resolucion_1401_2007",
+   "name": "Resolución 1401 de 2007",
+   "issuer": "Ministerio de la Protección Social",
+   "year": 2007,
+   "status": "vigente",
+   "topic": "Investigación de incidentes y accidentes de trabajo",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_minproteccion_1401_2007.htm"
+  },
+  {
+   "id": "resolucion_1843_2025",
+   "name": "Resolución 1843 de 2025",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2025,
+   "status": "vigente",
+   "topic": "Evaluaciones médicas ocupacionales e historia clínica ocupacional",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_mtra_1843_2025.htm"
+  },
+  {
+   "id": "resolucion_2346_2007",
+   "name": "Resolución 2346 de 2007",
+   "issuer": "Ministerio de la Protección Social",
+   "year": 2007,
+   "status": "derogada",
+   "derogated_by": "Resolución 1843 de 2025, art. 36",
+   "topic": "Evaluaciones médicas ocupacionales (DEROGADA)",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_minproteccion_2346_2007.htm"
+  },
+  {
+   "id": "resolucion_2013_1986",
+   "name": "Resolución 2013 de 1986",
+   "issuer": "Ministerios de Trabajo y Salud",
+   "year": 1986,
+   "status": "vigente",
+   "topic": "Comités de Medicina, Higiene y Seguridad Industrial (COPASST)",
+   "url": "https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsalud_r2013_86.htm"
+  },
+  {
+   "id": "resolucion_4272_2021",
+   "name": "Resolución 4272 de 2021",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2021,
+   "status": "vigente",
+   "topic": "Trabajo seguro en alturas (deroga la Res. 1409 de 2012)",
+   "url": "https://www.alcaldiabogota.gov.co/sisjur/normas/Norma1.jsp?i=120880"
+  },
+  {
+   "id": "resolucion_0491_2020",
+   "name": "Resolución 0491 de 2020",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2020,
+   "status": "vigente",
+   "topic": "Trabajo en espacios confinados",
+   "url": "https://www.alcaldiabogota.gov.co/sisjur/normas/Norma1.jsp?i=90906"
+  },
+  {
+   "id": "resolucion_2404_2019",
+   "name": "Resolución 2404 de 2019",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2019,
+   "status": "derogada",
+   "topic": "Batería de riesgo psicosocial (DEROGADA)",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_mtra_2404_2019.htm",
+   "derogated_by": "Resolución 2764 de 2022, art. 10"
+  },
+  {
+   "id": "resolucion_2764_2022",
+   "name": "Resolución 2764 de 2022",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2022,
+   "status": "vigente",
+   "topic": "Batería de instrumentos de evaluación de factores de riesgo psicosocial y guía técnica",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_mtra_2764_2022.htm"
+  },
+  {
+   "id": "resolucion_0652_2012",
+   "name": "Resolución 0652 de 2012",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2012,
+   "status": "derogada",
+   "topic": "Comité de Convivencia Laboral (DEROGADA)",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_mtra_0652_2012.htm",
+   "derogated_by": "Resolución 3461 de 2025, art. 16"
+  },
+  {
+   "id": "resolucion_3461_2025",
+   "name": "Resolución 3461 de 2025",
+   "issuer": "Ministerio del Trabajo",
+   "year": 2025,
+   "status": "vigente",
+   "topic": "Comité de Convivencia Laboral (deroga las Res. 652 y 1356 de 2012)",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/resolucion_mtra_3461_2025.htm"
+  },
+  {
+   "id": "ley_1010_2006",
+   "name": "Ley 1010 de 2006",
+   "issuer": "Congreso de la República",
+   "year": 2006,
+   "status": "vigente",
+   "topic": "Acoso laboral",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/ley_1010_2006.htm"
+  },
+  {
+   "id": "ley_1581_2012",
+   "name": "Ley 1581 de 2012",
+   "issuer": "Congreso de la República",
+   "year": 2012,
+   "status": "vigente",
+   "topic": "Protección de datos personales (datos sensibles de salud)",
+   "url": "https://normograma.mintic.gov.co/mintic/compilacion/docs/ley_1581_2012.htm"
+  }
+ ]
+}

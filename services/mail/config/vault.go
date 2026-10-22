@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	vault "github.com/hashicorp/vault/api"
 )
@@ -15,6 +17,15 @@ import (
 func (c *Config) LoadVaultSecrets() error {
 	if !c.VaultEnabled {
 		return nil
+	}
+	// The token normally arrives as a Docker secret file, so it never sits in
+	// an env file or in `docker inspect` output.
+	if f := os.Getenv("VAULT_TOKEN_FILE"); f != "" {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			return fmt.Errorf("vault token file: %w", err)
+		}
+		c.VaultToken = strings.TrimSpace(string(raw))
 	}
 	client, err := vault.NewClient(&vault.Config{Address: c.VaultAddr})
 	if err != nil {
@@ -51,9 +62,9 @@ func (c *Config) LoadVaultSecrets() error {
 	}
 
 	optional := map[string]*string{
-		"smtp_pass":    &c.SMTPPass,
-		"smtp_user":    &c.SMTPUser,
-		"sendgrid_key": &c.SendGridKey,
+		"smtp_pass":      &c.SMTPPass,
+		"smtp_user":      &c.SMTPUser,
+		"internal_token": &c.InternalToken,
 	}
 	for key, target := range optional {
 		if value, ok := data[key].(string); ok && value != "" {

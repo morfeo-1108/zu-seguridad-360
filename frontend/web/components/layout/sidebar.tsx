@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ZULogo } from "@/components/brand/logo";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { LayoutDashboard, Building2, Users, GraduationCap, Stethoscope, ShieldAlert, AlertTriangle, FileText, Cpu, Plane, Inbox, Bot, DollarSign, Settings, ChevronRight, Layers, Network, RefreshCw, HardHat, ClipboardCheck, Gavel, BarChart3, Scale, Briefcase } from "lucide-react";
+import { LayoutDashboard, Building2, Users, GraduationCap, Stethoscope, ShieldAlert, AlertTriangle, FileText, Cpu, Plane, Inbox, Bot, DollarSign, Settings, ChevronRight, Layers, Network, RefreshCw, HardHat, ClipboardCheck, Gavel, BarChart3, Scale, Briefcase, Sunrise } from "lucide-react";
 
 const NAV_GROUPS = [
   { label: null, items: [
@@ -30,11 +30,11 @@ const NAV_GROUPS = [
     { href: "/dashboard/documents", label: "Documental", icon: FileText },
   ]},
   { label: "AUTOMATIZACIÓN", items: [
-    { href: "/dashboard/autopilot", label: "Autopilot", icon: Cpu },
+    { href: "/dashboard/autopilot", label: "Briefing diario", icon: Sunrise },
     { href: "/dashboard/drones", label: "Flota Drones", icon: Plane },
     { href: "/dashboard/zones", label: "Zonas & Validación", icon: Layers },
     { href: "/dashboard/attention", label: "Inbox Maestro", icon: Inbox },
-    { href: "/dashboard/siso", label: "SISO-Bot IA", icon: Bot },
+    { href: "/dashboard/siso", label: "Consulta normativa", icon: Scale },
     { href: "/dashboard/agents", label: "Centro de Agentes", icon: Network },
   ]},
   { label: "NEGOCIO", items: [

@@ -4,12 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.privacy_gate import documents_path_enabled
+from sqlalchemy import text
+
 from app.api import generator, certificates, reports
+from app.core.db import engine, init_db
+from app.services.pdf_generator import TEMPLATES
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("✅ ZU Documents Service started — 49 templates ready")
+    await init_db()
+    print(f"ZU Documents started — {len(TEMPLATES)} templates")
     yield
 
 
@@ -32,4 +37,9 @@ app.include_router(reports.router, prefix="/v1/reports", tags=["Reportes"])
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "zu-documents", "templates": 49}
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "degraded", "db": False})
+    return {"status": "ok", "service": "zu-documents", "templates": len(TEMPLATES), "db": True}

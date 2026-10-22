@@ -17,7 +17,6 @@ import (
 	"testing"
 
 	"github.com/zu-seguridad/billing/internal/model"
-	"github.com/zu-seguridad/billing/internal/wompi"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -35,7 +34,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 func TestBillingIdempotency_PreventsDoubleCharge(t *testing.T) {
 	db := setupTestDB(t)
-	svc := NewBillingService(db, wompi.NewClient("", ""))
+	svc := NewBillingService(db)
 	ctx := context.Background()
 	key := "monthly-2026-06"
 
@@ -55,7 +54,7 @@ func TestBillingIdempotency_PreventsDoubleCharge(t *testing.T) {
 
 func TestBillingIdempotency_DistinctKeysIndependent(t *testing.T) {
 	db := setupTestDB(t)
-	svc := NewBillingService(db, wompi.NewClient("", ""))
+	svc := NewBillingService(db)
 	ctx := context.Background()
 
 	svc.MarkProcessed(ctx, "monthly-2026-06")

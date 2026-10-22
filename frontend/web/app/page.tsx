@@ -1,45 +1,58 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ShieldCheck, Building2, HardHat, FileCheck2, GraduationCap, FileText,
-  Lock, Boxes, ArrowRight, Sparkles, ScrollText, RadioTower, Fingerprint, Eye,
-} from "lucide-react";
+import { ArrowRight, Check, Lock, FileCheck2, AlarmClock, Sunrise, HeartPulse, Scale, Minus } from "lucide-react";
 import { ZULogo } from "@/components/brand/logo";
 import { Reveal, spotlightHandler } from "@/components/landing/reveal";
+import { ScrubVideo } from "@/components/landing/scrub-video";
+import { SmoothScroll } from "@/components/landing/smooth-scroll";
 import { useAuthStore } from "@/lib/store";
+import { BEFORE_AFTER, DIFFERENTIATORS, ROADMAP, TARGETS } from "@/lib/landing-claims";
+import { NORMS_INDEXED } from "@/lib/normative-corpus";
 
-const CAPABILITIES = [
-  { icon: Building2, title: "Toda tu cartera, un solo lugar", desc: "Administra todas tus empresas cliente desde una sola cuenta, sin mezclar nunca la información de una con otra." },
-  { icon: Lock, title: "Control de acceso real", desc: "Cada empresa ve únicamente su propia información. El aislamiento entre clientes está en el diseño del sistema, no en la buena voluntad de quien lo configura." },
-  { icon: ScrollText, title: "PHVA sobre 5 marcos normativos", desc: "ISO 45001, 9001, 14001, 31000 y Resolución 0312 de 2019, con el ciclo Planear-Hacer-Verificar-Actuar y aprobación de un profesional en cada fase." },
-  { icon: HardHat, title: "Trabajadores y EPP bajo control", desc: "Expedientes, cargos, restricciones médicas y elementos de protección personal, con historial completo y trazable por trabajador." },
-  { icon: FileCheck2, title: "Incidentes y FURAT sin fricción", desc: "Investigación de accidentes con trazabilidad completa y el FURAT listo para radicar ante la ARL." },
-  { icon: GraduationCap, title: "Capacitación con vencimientos bajo control", desc: "Cursos, asistencia y certificados con alertas automáticas antes de que una vigencia se venza." },
-  { icon: FileText, title: "Documentos y certificados verificables", desc: "Generación con plantillas, control de versiones y verificación pública por folio — cualquiera puede confirmar que un certificado es auténtico." },
-  { icon: ShieldCheck, title: "Permisos por rol, sin excepciones", desc: "Cada acción queda ligada a un rol y una empresa específicos, con revisión humana obligatoria para cualquier cambio normativo." },
-];
+// Three.js and the particle canvas load after hydration, off the critical path.
+const RefractionSphere = dynamic(() => import("@/components/landing/refraction-sphere").then((m) => m.RefractionSphere), { ssr: false });
+const Particles = dynamic(() => import("@/components/landing/particles").then((m) => m.Particles), { ssr: false });
 
-const DIFFERENTIATORS = [
-  { icon: Lock, title: "Aislamiento verificado, no prometido", desc: "La mayoría de plataformas de SST en Colombia declara gestión multiempresa. La nuestra se probó con intentos reales de acceso cruzado entre cuentas distintas — no es una frase de la página de ventas." },
-  { icon: Sparkles, title: "Asistencia con trazabilidad, no una caja negra", desc: "Cuando la IA entra en juego, cita su fuente normativa y pasa por la aprobación de un profesional antes de modificar cualquier registro. Ninguna decisión se toma sola." },
-  { icon: FileCheck2, title: "Evidencia con procedencia", desc: "Quién hizo qué, cuándo y sobre cuál empresa — siempre exportable. Ante una auditoría del Ministerio, eso pesa más que una promesa de cumplimiento." },
-  { icon: Eye, title: "Precio público, sin letra pequeña", desc: "En un mercado donde ningún proveedor publica su precio, el nuestro está en esta misma página. Sin cotización, sin esperar una llamada de ventas." },
-];
+const ICONS: Record<string, typeof Lock> = {
+  aislamiento: Lock, trazabilidad: FileCheck2, plazos: AlarmClock, briefing: Sunrise, datos_salud: HeartPulse, motor_normativo: Scale,
+};
 
-const ROADMAP_MODULES = [
-  { icon: Sparkles, title: "Asistente normativo con IA", desc: "Consulta en lenguaje natural sobre la normativa colombiana de SST, con la fuente citada en cada respuesta." },
-  { icon: RadioTower, title: "Inspección por visión artificial", desc: "Validación fotográfica del uso correcto de EPP por zona de trabajo." },
-  { icon: Fingerprint, title: "Control de acceso biométrico", desc: "Identificación de trabajadores en campo, con consentimiento explícito y trazabilidad del dato." },
-];
+const VIDEO = {
+  wide: { webm: "/videos/hero-scrub.webm", mp4: "/videos/hero-scrub.mp4" },
+  narrow: { webm: "/videos/hero-scrub-540.webm", mp4: "/videos/hero-scrub-540.mp4" },
+};
+
+const PROFILES = {
+  profesional: {
+    label: "Profesional SST independiente",
+    points: [
+      "Atiende varias empresas desde una sola cuenta, cambiando de empresa sin cerrar sesión.",
+      "Deja de transcribir hallazgos: el plan de acción sale de la inspección.",
+      "Deja de vigilar plazos de memoria: el vencimiento le llega como alerta.",
+      "Empieza el día con un resumen de pendientes de toda su cartera.",
+      "Genera documentos del SG-SST con versión y huella, listos para una auditoría.",
+    ],
+  },
+  empresa: {
+    label: "Empresa cliente",
+    points: [
+      "Su información vive aislada de la de las demás empresas del profesional.",
+      "Cada documento, inspección y aprobación queda con autor y fecha.",
+      "La matriz legal, el COPASST, el EPP y el ciclo PHVA en un mismo lugar.",
+      "Los datos de salud de sus trabajadores no se procesan hasta cerrar sus controles de seguridad.",
+    ],
+  },
+} as const;
 
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoReady, setVideoReady] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [profile, setProfile] = useState<keyof typeof PROFILES>("profesional");
 
   useEffect(() => {
     if (isAuthenticated) router.replace("/dashboard");
@@ -51,245 +64,226 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // The autoplay attribute alone is unreliable across browsers; force
-  // playback explicitly once the element exists, and retry on the
-  // visibility/canplay events in case the first attempt was blocked before
-  // enough of the file had buffered.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    // React doesn't reliably reflect the muted prop onto the element, and
-    // browsers only allow autoplay for videos that are muted as a property.
-    el.muted = true;
-    el.defaultMuted = true;
-    const tryPlay = () => {
-      if (!el.paused) return;
-      el.play().catch(() => { /* retried on the events below */ });
-    };
-    // Low-power modes (iOS/Android), Chrome's energy saver and browsers with
-    // autoplay blocked reject play() until the user interacts with the page,
-    // so retry on every gesture (only events that grant user activation —
-    // scroll doesn't) and whenever the tab becomes visible, until it plays.
-    const gestures = ["pointerdown", "pointerup", "touchend", "keydown", "click"] as const;
-    const onGesture = () => tryPlay();
-    const removeGestures = () => gestures.forEach((g) => window.removeEventListener(g, onGesture));
-    const onVisible = () => { if (document.visibilityState === "visible") tryPlay(); };
-    // With preload="auto" the browser can start playback before hydration
-    // attaches the playing listener, since SSR already streamed the <video>
-    // tag. That event doesn't fire again, so check the state synchronously.
-    if (!el.paused && el.readyState >= 2) setVideoReady(true);
-    tryPlay();
-    el.addEventListener("canplay", tryPlay);
-    el.addEventListener("loadeddata", tryPlay);
-    el.addEventListener("playing", removeGestures);
-    document.addEventListener("visibilitychange", onVisible);
-    gestures.forEach((g) => window.addEventListener(g, onGesture, { passive: true }));
-    if (!el.paused) removeGestures();
-    return () => {
-      el.removeEventListener("canplay", tryPlay);
-      el.removeEventListener("loadeddata", tryPlay);
-      el.removeEventListener("playing", removeGestures);
-      document.removeEventListener("visibilitychange", onVisible);
-      removeGestures();
-    };
-  }, []);
-
   if (isAuthenticated) return null;
+
+  const verified = DIFFERENTIATORS.filter((d) => d.status === "verificado");
+  const upcoming = [...DIFFERENTIATORS.filter((d) => d.status !== "verificado"), ...ROADMAP];
 
   return (
     <div className="min-h-screen bg-[#0B0F0C] text-white">
-      {/* ── Nav ── */}
-      <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${scrolled ? "bg-[#0B0F0C]/90 backdrop-blur-md border-b border-white/[0.06]" : "bg-transparent"}`}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+      <SmoothScroll />
+      <a href="#contenido" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-zu-lime focus:px-4 focus:py-2 focus:text-[#0B0F0C]">
+        Saltar al contenido
+      </a>
+
+      <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled ? "border-b border-white/[0.06] bg-[#0B0F0C]/90 backdrop-blur-md" : "bg-transparent"}`}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
           <ZULogo size={34} dark showText />
-          <nav className="hidden items-center gap-8 text-[13px] font-medium text-white/70 md:flex">
-            <a href="#capacidades" className="hover:text-white transition">Capacidades</a>
-            <a href="#piloto" className="hover:text-white transition">En piloto</a>
-            <Link href="/planes" className="hover:text-white transition">Planes</Link>
+          <nav aria-label="Secciones" className="hidden items-center gap-8 text-[13px] font-medium text-white/75 md:flex">
+            <a href="#diferencias" className="transition hover:text-white">Qué cambia</a>
+            <a href="#perfiles" className="transition hover:text-white">Para quién</a>
+            <a href="#normativa" className="transition hover:text-white">Normativa</a>
+            <Link href="/planes" className="transition hover:text-white">Planes</Link>
           </nav>
-          <Link href="/auth/login" className="rounded-lg border border-white/15 bg-white/5 px-5 py-2.5 text-[13px] font-bold text-white backdrop-blur-sm transition hover:border-zu-lime hover:bg-zu-lime hover:text-[#0B0F0C]">
+          <Link href="/auth/login" className="rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-[13px] font-bold text-white backdrop-blur-sm transition hover:border-zu-lime hover:bg-zu-lime hover:text-[#0B0F0C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zu-lime sm:px-5">
             Iniciar sesión
           </Link>
         </div>
       </header>
 
-      {/* ── Hero: video de marca a pantalla completa ── */}
-      <section className="relative flex min-h-[100vh] items-center overflow-hidden">
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster="/videos/hero-poster.jpg"
-          // Only reveal the video once it actually plays; if autoplay is
-          // blocked the poster stays on top instead of a frozen first frame.
-          onPlaying={() => setVideoReady(true)}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
-        >
-          <source src="/videos/hero.webm" type="video/webm" />
-          <source src="/videos/hero.mp4" type="video/mp4" />
-        </video>
-        <img
-          src="/videos/hero-poster.jpg"
-          alt=""
-          aria-hidden
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-0" : "opacity-100"}`}
-        />
-        {/* Velo oscuro para legibilidad del texto sobre el video */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-[#0B0F0C]" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/20 to-black/60" />
+      {/* ── Hero: video scrubeado por scroll + esfera ── */}
+      <section ref={heroRef} className="relative h-[100svh] min-h-[600px] overflow-hidden">
+        <ScrubVideo triggerRef={heroRef} poster="/videos/hero-poster.webp" sources={VIDEO} className="absolute inset-0" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/55 to-[#0B0F0C]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/30 to-transparent" />
+        <Particles className="pointer-events-none absolute inset-0 h-full w-full" />
+        <RefractionSphere className="pointer-events-none absolute -right-[18%] top-[6%] h-[46vw] w-[70vw] opacity-60 md:right-0 md:top-0 md:h-full md:w-[46%] md:opacity-100" />
 
-        <div className="relative z-10 mx-auto w-full max-w-5xl px-6 pt-28 text-center lg:px-10">
-          <div className="animate-hero-in">
-            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-[12px] font-semibold tracking-wide text-zu-lime backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-zu-lime" />
-              SOFTWARE DE SEGURIDAD Y SALUD EN EL TRABAJO · COLOMBIA
-            </div>
-            <h1 className="text-[42px] font-extrabold leading-[1.05] tracking-tight sm:text-[58px] lg:text-[72px]">
-              Prevenimos hoy,
-              <br />
-              <span className="bg-gradient-to-r from-zu-lime to-emerald-400 bg-clip-text text-transparent">
-                protegemos siempre.
-              </span>
-            </h1>
-            <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-relaxed text-white/75 sm:text-[20px]">
-              La plataforma que un profesional SST necesita para gestionar varias empresas a la vez:
-              control de acceso verificado en cada solicitud, trazabilidad completa y un ciclo PHVA
-              construido sobre los marcos normativos que ya exige la ley colombiana.
+        <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6 lg:px-10">
+          <div className="max-w-2xl pt-16 animate-hero-in">
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-4 py-1.5 text-[12px] font-semibold tracking-wide text-zu-lime backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-zu-lime" aria-hidden />
+              SEGURIDAD Y SALUD EN EL TRABAJO · COLOMBIA
             </p>
-            <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[12px] font-semibold uppercase tracking-wide text-white/50">
-              <span>Resolución 0312</span><span className="text-white/20">·</span>
-              <span>Decreto 1072</span><span className="text-white/20">·</span>
-              <span>ISO 45001</span><span className="text-white/20">·</span>
-              <span>GTC‑45</span>
-            </div>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Link
-                href="/auth/login"
-                className="group inline-flex items-center gap-2 rounded-full bg-zu-lime px-8 py-4 text-[15px] font-bold text-[#0B0F0C] shadow-[0_8px_30px_rgba(139,195,74,0.35)] transition hover:bg-white"
-              >
+            <h1 className="text-[38px] font-extrabold leading-[1.05] tracking-tight sm:text-[54px] lg:text-[64px]">
+              Lleve todas sus empresas
+              <br />
+              <span className="text-zu-lime">sin perder el criterio</span> en ninguna.
+            </h1>
+            <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-white/80 sm:text-[19px]">
+              La plataforma para el profesional SST que gestiona varias empresas: cada hallazgo con plazo,
+              cada documento con versión y huella, y un resumen de su cartera cada mañana. Las decisiones siguen siendo suyas.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center gap-4">
+              <Link href="/auth/login" className="group inline-flex items-center gap-2 rounded-full bg-zu-lime px-7 py-3.5 text-[15px] font-bold text-[#0B0F0C] shadow-[0_8px_30px_rgba(139,195,74,0.35)] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Ingresar a la plataforma
-                <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+                <ArrowRight size={16} className="transition group-hover:translate-x-1" aria-hidden />
               </Link>
-              <a href="#capacidades" className="text-[14px] font-semibold text-white/80 hover:text-white transition">
-                Ver qué incluye ↓
+              <a href="#diferencias" className="rounded-full px-2 py-2 text-[14px] font-semibold text-white/85 transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                Ver qué cambia ↓
               </a>
             </div>
           </div>
         </div>
-
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B0F0C] to-transparent" />
       </section>
 
-      {/* ── Por qué somos diferentes ── */}
-      <section className="relative border-t border-white/[0.06] bg-[#0B0F0C] py-20">
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
-          <Reveal className="mb-12 max-w-2xl">
-            <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Por qué ZU 360</div>
-            <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[36px]">Lo que ningún otro software de SST en Colombia hace igual.</h2>
-          </Reveal>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {DIFFERENTIATORS.map((d, i) => (
-              <Reveal key={d.title} delay={i * 80}>
-                <div onMouseMove={spotlightHandler} className="spotlight-card h-full rounded-2xl border border-zu-lime/15 bg-gradient-to-b from-zu-lime/[0.05] to-transparent p-6 transition-all duration-300 hover:-translate-y-1">
-                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zu-lime/10 text-zu-lime">
-                    <d.icon size={20} />
-                  </div>
-                  <h3 className="mb-2 text-[15px] font-bold text-white">{d.title}</h3>
-                  <p className="text-[13px] leading-relaxed text-white/55">{d.desc}</p>
+      <main id="contenido">
+        {/* ── Antes / después ── */}
+        <section id="diferencias" className="border-t border-white/[0.06] bg-[#0B0F0C] py-20 sm:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+            <Reveal className="mb-12 max-w-2xl">
+              <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Qué cambia en su día</p>
+              <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[38px]">Del control manual a un sistema que le avisa.</h2>
+            </Reveal>
+            <Reveal>
+              <div className="overflow-hidden rounded-2xl border border-white/[0.08]">
+                <div className="grid grid-cols-1 bg-white/[0.03] text-[12px] font-bold uppercase tracking-wider text-white/60 sm:grid-cols-2">
+                  <div className="hidden px-6 py-4 sm:block">Sin ZU 360</div>
+                  <div className="hidden px-6 py-4 text-zu-lime sm:block">Con ZU 360</div>
                 </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Capacidades ── */}
-      <section id="capacidades" className="relative overflow-hidden border-t border-white/[0.06] bg-[#0B0F0C] py-24">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-        <div className="pointer-events-none absolute -left-32 top-10 h-[420px] w-[420px] animate-float-slow rounded-full bg-zu-lime/10 blur-[110px]" />
-        <div className="pointer-events-none absolute -right-24 bottom-0 h-[360px] w-[360px] animate-float-slower rounded-full bg-emerald-500/10 blur-[110px]" />
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
-          <Reveal className="mb-14 max-w-2xl">
-            <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">La plataforma</div>
-            <h2 className="text-[32px] font-extrabold tracking-tight sm:text-[40px]">Construida sobre el rigor que exige la ley, no sobre una lista de funciones.</h2>
-            <p className="mt-3 text-[15px] text-white/55">
-              Cada módulo nace de un requisito normativo real del sistema de gestión de SST en Colombia — pensado para el día a día de quien administra varias empresas a la vez.
-            </p>
-          </Reveal>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {CAPABILITIES.map((c, i) => (
-              <Reveal key={c.title} delay={(i % 4) * 80}>
-                <div onMouseMove={spotlightHandler} className="spotlight-card group h-full rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-white/[0.14] hover:bg-white/[0.04] hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.5)]">
-                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zu-lime/10 text-zu-lime transition group-hover:bg-zu-lime group-hover:text-[#0B0F0C]">
-                    <c.icon size={20} />
+                {BEFORE_AFTER.map((r) => (
+                  <div key={r.after} className="grid grid-cols-1 border-t border-white/[0.06] sm:grid-cols-2">
+                    <p className="flex gap-3 px-6 py-4 text-[14px] leading-relaxed text-white/60"><Minus size={16} className="mt-0.5 shrink-0 text-white/35" aria-hidden /><span><span className="sr-only">Sin ZU 360: </span>{r.before}</span></p>
+                    <p className="flex gap-3 px-6 pb-5 pt-0 text-[14px] leading-relaxed text-white sm:py-4"><Check size={16} className="mt-0.5 shrink-0 text-zu-lime" aria-hidden /><span><span className="sr-only">Con ZU 360: </span>{r.after}</span></p>
                   </div>
-                  <h3 className="mb-2 text-[15px] font-bold text-white">{c.title}</h3>
-                  <p className="text-[13px] leading-relaxed text-white/50">{c.desc}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Hoja de ruta ── */}
-      <section id="piloto" className="relative overflow-hidden border-t border-white/[0.06] bg-[#0D1210] py-24">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-        <div className="pointer-events-none absolute left-1/3 top-0 h-[380px] w-[380px] animate-float-slower rounded-full bg-amber-400/10 blur-[120px]" />
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
-          <Reveal className="mb-14 flex flex-wrap items-end justify-between gap-6">
-            <div className="max-w-xl">
-              <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-amber-400">En desarrollo</div>
-              <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">La siguiente frontera: inteligencia artificial aplicada a la prevención.</h2>
-              <p className="mt-3 text-[15px] text-white/55">
-                Estamos construyendo estos módulos con el mismo estándar de rigor normativo
-                y protección de datos del resto de la plataforma, antes de ponerlos en manos
-                de cada profesional.
+                ))}
+              </div>
+            </Reveal>
+            <Reveal className="mt-10">
+              <div className="grid gap-4 sm:grid-cols-3">
+                {TARGETS.map((t) => (
+                  <div key={t.metric} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+                    <p className="text-[28px] font-extrabold text-white">{t.value}</p>
+                    <p className="mt-1 text-[14px] text-white/75">{t.metric}</p>
+                    <p className="mt-2 text-[12px] font-semibold uppercase tracking-wide text-amber-300/90">{t.note}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 max-w-3xl text-[13px] leading-relaxed text-white/55">
+                Estas tres cifras son metas del diseño del producto, no resultados medidos. Publicaremos las cifras reales cuando el piloto con profesionales SST las haya medido.
               </p>
-            </div>
-            <Boxes size={48} className="shrink-0 text-white/15" />
-          </Reveal>
-          <div className="grid gap-5 sm:grid-cols-3">
-            {ROADMAP_MODULES.map((m, i) => (
-              <Reveal key={m.title} delay={i * 90}>
-                <div onMouseMove={spotlightHandler} className="spotlight-card amber h-full rounded-2xl border border-amber-500/15 bg-amber-500/[0.04] p-6 transition-all duration-300 hover:-translate-y-1">
-                  <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-                    <m.icon size={20} />
-                  </div>
-                  <h3 className="mb-2 text-[15px] font-bold text-white">{m.title}</h3>
-                  <p className="text-[13px] leading-relaxed text-white/50">{m.desc}</p>
-                </div>
-              </Reveal>
-            ))}
+            </Reveal>
           </div>
+        </section>
+
+        {/* ── Diferenciadores verificados ── */}
+        <section className="border-t border-white/[0.06] bg-[#0D1210] py-20 sm:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
+            <Reveal className="mb-12 max-w-2xl">
+              <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Lo que ya funciona</p>
+              <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[38px]">Cada afirmación de esta página está probada en el sistema.</h2>
+            </Reveal>
+            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {verified.map((d, i) => {
+                const Icon = ICONS[d.id] ?? Check;
+                return (
+                  <li key={d.id}>
+                    <Reveal delay={(i % 3) * 80} className="h-full">
+                      <div onMouseMove={spotlightHandler} className="spotlight-card h-full rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+                        <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-zu-lime/10 text-zu-lime"><Icon size={20} aria-hidden /></div>
+                        <h3 className="mb-2 text-[16px] font-bold">{d.title}</h3>
+                        <p className="text-[14px] leading-relaxed text-white/70">{d.body}</p>
+                        {d.proof && <p className="mt-4 border-l-2 border-zu-lime/60 pl-3 text-[13px] leading-relaxed text-white/60">{d.proof}</p>}
+                      </div>
+                    </Reveal>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+
+        {/* ── Beneficios por perfil ── */}
+        <section id="perfiles" className="border-t border-white/[0.06] bg-[#0B0F0C] py-20 sm:py-24">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-10">
+            <Reveal className="mb-10 max-w-2xl">
+              <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Para quién</p>
+              <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[38px]">Lo que gana cada lado.</h2>
+            </Reveal>
+            <div role="tablist" aria-label="Perfil" className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.03] p-1">
+              {(Object.keys(PROFILES) as (keyof typeof PROFILES)[]).map((k) => (
+                <button
+                  key={k} role="tab" id={`tab-${k}`} aria-selected={profile === k} aria-controls={`panel-${k}`}
+                  onClick={() => setProfile(k)}
+                  onKeyDown={(e) => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const next = k === "profesional" ? "empresa" : "profesional"; setProfile(next); document.getElementById(`tab-${next}`)?.focus(); } }}
+                  tabIndex={profile === k ? 0 : -1}
+                  className={`rounded-full px-5 py-2.5 text-[14px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-zu-lime ${profile === k ? "bg-zu-lime text-[#0B0F0C]" : "text-white/75 hover:text-white"}`}
+                >
+                  {PROFILES[k].label}
+                </button>
+              ))}
+            </div>
+            <div role="tabpanel" id={`panel-${profile}`} aria-labelledby={`tab-${profile}`} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 sm:p-8">
+              <ul className="space-y-4">
+                {PROFILES[profile].points.map((p) => (
+                  <li key={p} className="flex gap-3 text-[15px] leading-relaxed text-white/85"><Check size={18} className="mt-0.5 shrink-0 text-zu-lime" aria-hidden />{p}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Normativa y estado del proyecto ── */}
+        <section id="normativa" className="border-t border-white/[0.06] bg-[#0D1210] py-20 sm:py-24">
+          <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:px-10">
+            <Reveal>
+              <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-zu-lime">Marco normativo</p>
+              <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">Normas vigentes en la base de consulta</h2>
+              <p className="mt-3 text-[14px] leading-relaxed text-white/65">
+                Textos oficiales, artículo por artículo, con control de vigencia: cuando una norma fue derogada, se indica por cuál.
+              </p>
+              <ul className="mt-6 grid gap-2 sm:grid-cols-2">
+                {NORMS_INDEXED.filter((n) => n.status !== "derogada").map((n) => (
+                  <li key={n.name} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                    <p className="text-[14px] font-semibold">{n.name}</p>
+                    <p className="text-[12px] text-white/55">{n.topic}</p>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+            <Reveal delay={100}>
+              <p className="mb-3 text-[12px] font-bold uppercase tracking-widest text-amber-300">Estado del proyecto</p>
+              <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">Un sistema nuevo, en piloto, y lo decimos.</h2>
+              <p className="mt-3 text-[14px] leading-relaxed text-white/70">
+                ZU 360 está en piloto con profesionales SST en Colombia desde octubre de 2026. No tenemos diez años en el mercado;
+                tenemos un sistema que hace lo que dice esta página, y una lista honesta de lo que aún no hace:
+              </p>
+              <ul className="mt-6 space-y-3">
+                {upcoming.map((r) => (
+                  <li key={r.id} className="rounded-xl border border-amber-400/15 bg-amber-400/[0.04] px-4 py-3">
+                    <p className="text-[14px] font-semibold">{r.title} <span className="ml-1 text-[11px] font-bold uppercase tracking-wide text-amber-300">próximamente</span></p>
+                    <p className="mt-1 text-[13px] leading-relaxed text-white/60">{r.body}</p>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          </div>
+        </section>
+
+        <section className="border-t border-white/[0.06] bg-[#0B0F0C] py-20 sm:py-24">
+          <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+            <h2 className="text-[28px] font-extrabold tracking-tight sm:text-[36px]">Pruébelo con una de sus empresas.</h2>
+            <p className="mx-auto mt-4 max-w-md text-[15px] text-white/65">Ingrese con su cuenta de Google o con correo y contraseña. El precio de cada plan es público.</p>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link href="/auth/login" className="group inline-flex items-center gap-2 rounded-full bg-zu-lime px-7 py-3.5 text-[15px] font-bold text-[#0B0F0C] transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                Ingresar <ArrowRight size={16} className="transition group-hover:translate-x-1" aria-hidden />
+              </Link>
+              <Link href="/planes" className="inline-flex items-center rounded-full border border-white/20 px-7 py-3.5 text-[15px] font-semibold text-white transition hover:border-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+                Ver planes y precios
+              </Link>
+            </div>
+          </Reveal>
+        </section>
+      </main>
+
+      <footer className="border-t border-white/[0.06] bg-[#0B0F0C] px-4 py-8 text-[12px] text-white/50 sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+          <span>ZU Seguridad Integral 360 · Colombia</span>
+          <nav aria-label="Legal" className="flex gap-6">
+            <Link href="/legal/terminos" className="hover:text-white">Términos</Link>
+            <Link href="/legal/privacidad" className="hover:text-white">Privacidad</Link>
+          </nav>
         </div>
-      </section>
-
-      {/* ── CTA final ── */}
-      <section className="relative overflow-hidden border-t border-white/[0.06] bg-[#0B0F0C] py-24">
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-zu-lime/[0.06] blur-[140px]" />
-        <Reveal className="relative mx-auto max-w-4xl px-6 text-center lg:px-10">
-          <h2 className="text-[30px] font-extrabold tracking-tight sm:text-[38px]">
-            Lleva la gestión de tu cartera a otro nivel.
-          </h2>
-          <p className="mx-auto mt-4 max-w-md text-[15px] text-white/55">
-            Ingresa con tu cuenta de profesional SST y descubre todo lo que ZU 360 puede hacer por tus empresas.
-          </p>
-          <Link
-            href="/auth/login"
-            className="group mt-8 inline-flex items-center gap-2 rounded-full bg-zu-lime px-8 py-4 text-[15px] font-bold text-[#0B0F0C] shadow-[0_8px_30px_rgba(139,195,74,0.25)] transition hover:bg-white hover:shadow-[0_8px_40px_rgba(139,195,74,0.4)]"
-          >
-            Ingresar a ZU 360
-            <ArrowRight size={17} className="transition group-hover:translate-x-1" />
-          </Link>
-        </Reveal>
-      </section>
-
-      <footer className="border-t border-white/[0.06] bg-[#0B0F0C] px-6 py-8 text-center text-[12px] text-white/35 lg:px-10">
-        ZU Seguridad Integral 360 · Colombia
       </footer>
     </div>
   );

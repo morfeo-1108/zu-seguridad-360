@@ -48,5 +48,5 @@ async def generate_monthly_report(req: MonthlyReportRequest, user=Depends(get_cu
 async def generate_res0312_report(data: Dict[str, Any], user=Depends(get_current_user)):
     """Genera checklist de cumplimiento Res. 0312/2019 con estado por estándar."""
     doc_id = str(uuid.uuid4())
-    pdf_bytes = gen.generate("politica_sst", {"title": "Evaluación Res. 0312/2019", **data}, doc_id)
+    pdf_bytes = gen.generate("generico", {**data, "title": "Evaluación Res. 0312/2019"}, doc_id)
     return Response(content=pdf_bytes, media_type="application/pdf")

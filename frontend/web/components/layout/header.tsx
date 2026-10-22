@@ -6,6 +6,7 @@ import { Building, ChevronDown, Check, LogOut, ShieldAlert } from "lucide-react"
 import { ZULogo } from "@/components/brand/logo";
 import { authAPI } from "@/lib/api";
 import { useAuthStore, type User } from "@/lib/store";
+import { NotificationBell } from "./notification-bell";
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -71,6 +72,7 @@ export function Header() {
       )}
       <div className="flex-1" />
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <span className="hidden md:inline text-[11.5px] font-medium text-zu-text2">{user ? `${user.firstName} ${user.lastName}` : "Sesión verificada"}</span>
         {user?.isSynthetic && <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">SINTÉTICO</span>}
         <div className="w-px h-4 bg-zu-border" />

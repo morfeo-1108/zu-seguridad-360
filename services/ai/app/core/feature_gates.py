@@ -37,6 +37,10 @@ def ai_path_enabled(path: str, flags: Any) -> bool:
         return True
     if not _enabled(flags, "AI_SERVICE_API_ENABLED"):
         return False
+    # Normative search reads only public legal texts: no personal data, so it
+    # does not depend on the personal-data processing approval.
+    if _matches(path, "/v1/rag"):
+        return True
     if not _enabled(flags, "PRIVACY_PROCESSING_APPROVED"):
         return False
 

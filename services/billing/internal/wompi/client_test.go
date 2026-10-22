@@ -2,64 +2,92 @@ package wompi
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 )
 
-func TestCreateTransactionRefusesWithoutPrivateKey(t *testing.T) {
-	c := NewClient("https://example.test", "")
-	_, err := c.CreateTransaction(context.Background(), CreateTransactionInput{})
-	if err != ErrNotConfigured {
+// Example from Wompi's integrity-signature documentation.
+func TestIntegritySignatureMatchesWompiExample(t *testing.T) {
+	got := IntegritySignature("sk8-438k4-xmxm392-sn2m", 2490000, "COP", "", "prod_integrity_Z5mMke9x0k8gpErbDqwrJXMqsI6SFli6")
+	want := "37c8407747e595535433ef8f6a811d853cd943046624a0ec04662b17bbf33bf5"
+	if got != want {
+		t.Fatalf("integrity signature mismatch:\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestBaseURLFollowsTheKeys(t *testing.T) {
+	if BaseURLFor("pub_test_x") != "https://sandbox.wompi.co/v1" || BaseURLFor("pub_prod_x") != "https://production.wompi.co/v1" {
+		t.Fatal("environment must be derived from the key prefix")
+	}
+}
+
+func TestCheckoutLinkIsSignedAndUnconfiguredRefuses(t *testing.T) {
+	if _, err := NewClient(Config{}).CheckoutLink(CheckoutInput{Reference: "r", AmountInCents: 100}); err != ErrNotConfigured {
 		t.Fatalf("expected ErrNotConfigured, got %v", err)
 	}
-}
-
-func TestCreateTransactionSendsRealRequestWhenConfigured(t *testing.T) {
-	var gotAuth string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAuth = r.Header.Get("Authorization")
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"data":{"id":"tx_1","status":"PENDING","reference":"inv-1","amount_in_cents":100000}}`))
-	}))
-	defer server.Close()
-
-	c := NewClient(server.URL, "prv_test_key")
-	resp, err := c.CreateTransaction(context.Background(), CreateTransactionInput{AmountInCents: 100000, Currency: "COP", Reference: "inv-1"})
+	c := NewClient(Config{PublicKey: "pub_test_abc", IntegritySecret: "test_integrity_s"})
+	link, err := c.CheckoutLink(CheckoutInput{Reference: "INV-1", AmountInCents: 11781000, RedirectURL: "https://www.zuseguridad360.com/dashboard/billing"})
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal(err)
 	}
-	if resp.Data.Status != "PENDING" {
-		t.Fatalf("expected PENDING status, got %q", resp.Data.Status)
+	u, _ := url.Parse(link)
+	q := u.Query()
+	if q.Get("public-key") != "pub_test_abc" || q.Get("amount-in-cents") != "11781000" || q.Get("currency") != "COP" {
+		t.Fatalf("bad checkout params: %v", q)
 	}
-	if gotAuth != "Bearer prv_test_key" {
-		t.Fatalf("expected private key forwarded as bearer token, got %q", gotAuth)
+	if q.Get("signature:integrity") != IntegritySignature("INV-1", 11781000, "COP", "", "test_integrity_s") {
+		t.Fatal("checkout must carry the integrity signature")
 	}
 }
 
-func TestVerifyEventSignatureMatchesKnownVector(t *testing.T) {
-	values := []string{"tx_1", "APPROVED", "100000"}
-	timestamp := int64(1700000000)
-	secret := "events-secret"
-	concat := ""
-	for _, v := range values {
-		concat += v
-	}
-	concat += fmt.Sprintf("%d", timestamp)
-	concat += secret
-	sum := sha256.Sum256([]byte(concat))
-	checksum := hex.EncodeToString(sum[:])
+const event = `{"event":"transaction.updated","data":{"transaction":{"id":"1234-1610641025-49201","amount_in_cents":4490000,"reference":"MZQ3X2DE2SMX","customer_email":"juan.perez@gmail.com","currency":"COP","payment_method_type":"NEQUI","status":"APPROVED"}},"environment":"test","signature":{"properties":["transaction.id","transaction.status","transaction.amount_in_cents"],"checksum":"%s"},"timestamp":1530291411,"sent_at":"2018-07-20T16:45:05.000Z"}`
 
-	if !VerifyEventSignature(values, timestamp, checksum, secret) {
-		t.Fatal("expected signature to verify against its own checksum computation")
+func TestVerifyEventWithNestedNumericProperties(t *testing.T) {
+	sum := EventChecksum([]string{"1234-1610641025-49201", "APPROVED", "4490000"}, 1530291411, "test_events_secret")
+	raw := []byte(strings.Replace(event, "%s", sum, 1))
+	ev, err := VerifyEvent(raw, "test_events_secret")
+	if err != nil {
+		t.Fatalf("valid event rejected: %v", err)
 	}
-	if VerifyEventSignature(values, timestamp, "wrong", secret) {
-		t.Fatal("expected mismatched checksum to fail verification")
+	tx, err := TransactionFromEvent(ev)
+	if err != nil || tx.AmountInCents != 4490000 || tx.Reference != "MZQ3X2DE2SMX" {
+		t.Fatalf("bad transaction: %+v %v", tx, err)
 	}
-	if VerifyEventSignature(values, timestamp, checksum, "") {
-		t.Fatal("expected empty events secret to fail verification, not pass trivially")
+	// Lower-case checksum is the same digest.
+	if _, err := VerifyEvent([]byte(strings.Replace(event, "%s", strings.ToLower(sum), 1)), "test_events_secret"); err != nil {
+		t.Fatal("checksum comparison must be case-insensitive")
+	}
+}
+
+func TestVerifyEventRejectsTampering(t *testing.T) {
+	sum := EventChecksum([]string{"1234-1610641025-49201", "APPROVED", "4490000"}, 1530291411, "test_events_secret")
+	tampered := strings.Replace(strings.Replace(event, "%s", sum, 1), `"amount_in_cents":4490000`, `"amount_in_cents":100`, 1)
+	if _, err := VerifyEvent([]byte(tampered), "test_events_secret"); err != ErrBadSignature {
+		t.Fatalf("tampered amount must fail, got %v", err)
+	}
+	if _, err := VerifyEvent([]byte(strings.Replace(event, "%s", sum, 1)), "other"); err != ErrBadSignature {
+		t.Fatal("wrong secret must fail")
+	}
+	if _, err := VerifyEvent([]byte(strings.Replace(event, "%s", sum, 1)), ""); err != ErrNotConfigured {
+		t.Fatal("missing secret must refuse, never accept")
+	}
+}
+
+func TestGetTransactionReadsAuthoritativeState(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/transactions/tx-1" {
+			w.WriteHeader(404)
+			return
+		}
+		w.Write([]byte(`{"data":{"id":"tx-1","status":"APPROVED","reference":"INV-1","amount_in_cents":500,"currency":"COP"}}`))
+	}))
+	defer srv.Close()
+	c := NewClient(Config{PublicKey: "pub_test_x", BaseURL: srv.URL})
+	tx, err := c.GetTransaction(context.Background(), "tx-1")
+	if err != nil || tx.Status != "APPROVED" || tx.AmountInCents != 500 {
+		t.Fatalf("got %+v %v", tx, err)
 	}
 }

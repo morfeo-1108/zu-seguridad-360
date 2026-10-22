@@ -5,6 +5,8 @@ import { AlertTriangle, FileText, Image as ImageIcon, Trash2, Upload } from "luc
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { Badge, Button, Card, Empty, PageHeader, Spinner } from "@/components/ui";
 import { documentAPI, mediaAPI } from "@/lib/api";
+import { SignedImage, SignedLink } from "@/components/modules/signed-file";
+import { GeneratedDocsCard } from "@/components/modules/generated-docs-card";
 import { useDocuments } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
@@ -100,7 +102,7 @@ export default function DocumentsPage() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
                 {photos.map((photo) => (
                   <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-md border border-zu-border">
-                    <img src={photo.file_url} alt={photo.title} className="h-full w-full object-cover" />
+                    <SignedImage url={photo.file_url} alt={photo.title} className="h-full w-full object-cover" />
                     <button onClick={() => void remove(photo.id)} className="absolute right-1 top-1 rounded bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"><Trash2 size={12} /></button>
                   </div>
                 ))}
@@ -118,7 +120,7 @@ export default function DocumentsPage() {
                 {nonPhotos.map((doc) => (
                   <div key={doc.id} className="flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
-                      <a href={doc.file_url} target="_blank" rel="noreferrer" className="truncate text-xs font-semibold text-zu-accent hover:underline">{doc.title}</a>
+                      <SignedLink url={doc.file_url} className="truncate text-left text-xs font-semibold text-zu-accent hover:underline">{doc.title}</SignedLink>
                       <p className="text-[10px] text-zu-text3">{(doc.file_size / 1024).toFixed(0)} KB · {formatDateTime(doc.created_at)}</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -132,6 +134,7 @@ export default function DocumentsPage() {
           )}
         </>
       )}
+      <GeneratedDocsCard />
     </DashboardShell>
   );
 }

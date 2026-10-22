@@ -16,17 +16,18 @@ import os
 import hvac
 
 REQUIRED_KEYS = {
+    "jwt_secret": "JWT_SECRET",
+    "weaviate_api_key": "WEAVIATE_API_KEY",
+}
+
+# Only needed by the high-risk modules (off in production today).
+OPTIONAL_KEYS = {
     "database_url": "DATABASE_URL",
     "rabbitmq_url": "RABBITMQ_URL",
     "redis_url": "REDIS_URL",
-    "jwt_secret": "JWT_SECRET",
-}
-
-OPTIONAL_KEYS = {
     "neo4j_password": "NEO4J_PASSWORD",
     "openai_api_key": "OPENAI_API_KEY",
     "anthropic_api_key": "ANTHROPIC_API_KEY",
-    "weaviate_api_key": "WEAVIATE_API_KEY",
     "aws_access_key_id": "AWS_ACCESS_KEY_ID",
     "aws_secret_access_key": "AWS_SECRET_ACCESS_KEY",
 }
@@ -38,6 +39,10 @@ def load_vault_secrets() -> None:
 
     addr = os.getenv("VAULT_ADDR", "http://localhost:8200")
     token = os.getenv("VAULT_TOKEN", "zu-vault-dev-token")
+    token_file = os.getenv("VAULT_TOKEN_FILE")
+    if token_file:
+        with open(token_file) as fh:
+            token = fh.read().strip()
     path = os.getenv("VAULT_SECRET_PATH", "secret/data/zu360/ai")
 
     client = hvac.Client(url=addr, token=token)

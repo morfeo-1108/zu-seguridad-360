@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/gofiber/fiber/v2 v2.52.4
+	github.com/hashicorp/vault/api v1.23.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 )
 
@@ -21,7 +22,6 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
-	github.com/hashicorp/vault/api v1.23.0 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

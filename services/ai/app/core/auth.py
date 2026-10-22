@@ -1,41 +1,47 @@
+import uuid
+
 from fastapi import Header, HTTPException, status
 from jose import jwt, JWTError
 from app.core.config import settings
 
-async def get_current_tenant(authorization: str = Header(None)) -> str:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
-    token = authorization.split(" ")[1]
+
+def _uuid(value) -> str:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-        tenant_id = payload.get("tenant_id")
-        if not tenant_id:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        return tenant_id
-    except JWTError:
+        return str(uuid.UUID(str(value)))
+    except (ValueError, TypeError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 
 async def get_current_user(authorization: str = Header(None)) -> dict:
-    """Decodes Core's JWT (same HS256 secret/claims) into the shape AI routes expect:
-    tenant_id, user_id, role, company_id, email, and the raw token for service-to-service calls."""
+    """Validates Core's HS256 access token with Core's own rules
+    (services/core/internal/middleware/auth.go): access tokens only, expiry
+    required, sub == user_id, UUID claims. Scope (tenant, company) always
+    comes from these signed claims, never from the request body."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
-    token = authorization.split(" ")[1]
+    token = authorization.split(" ", 1)[1].strip()
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"], options={"require_exp": True})
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    tenant_id = payload.get("tenant_id")
-    user_id = payload.get("user_id")
-    role = payload.get("role")
-    if not tenant_id or not user_id or not role:
+    if payload.get("token_type") != "access" or not payload.get("role") or payload.get("sub") != payload.get("user_id"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    company_id = payload.get("company_id")
     return {
-        "tenant_id": tenant_id,
-        "user_id": user_id,
-        "role": role,
-        "company_id": payload.get("company_id", ""),
+        "tenant_id": _uuid(payload.get("tenant_id")),
+        "user_id": _uuid(payload.get("user_id")),
+        "role": payload["role"],
+        "company_id": _uuid(company_id) if company_id else "",
         "email": payload.get("email", ""),
-        "token": token,
+        "token": token,  # forwarded on service-to-service calls (zone_inspection → Core)
     }
+
+
+def require_company(user: dict) -> str:
+    if not user["company_id"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active company in session")
+    return user["company_id"]
+
+
+async def get_current_tenant(authorization: str = Header(None)) -> str:
+    return (await get_current_user(authorization))["tenant_id"]

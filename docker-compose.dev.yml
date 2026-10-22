@@ -1,4 +1,10 @@
-version: "3.9"
+x-vault-env: &vault-env
+  # Staging/producción: todo secreto se lee de Vault al arrancar (scripts/vault.sh,
+  # scripts/provision-service.sh). El token de cada servicio llega como Docker secret.
+  ENV: production
+  VAULT_ENABLED: "true"
+  VAULT_ADDR: http://vault:8200
+  VAULT_TOKEN_FILE: /run/secrets/vault_token
 
 networks:
   zu-network:
@@ -86,16 +92,22 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:50051:50051"
+    # Vectores calculados por services/ai (embeddings locales en CPU); sin módulos
+    # de terceros. Acceso solo con API key (secrets/weaviate.env, también en Vault
+    # como weaviate_api_key del servicio ai).
+    env_file: ./secrets/weaviate.env
     environment:
       QUERY_DEFAULTS_LIMIT: 25
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "false"
+      AUTHENTICATION_APIKEY_ENABLED: "true"
       PERSISTENCE_DATA_PATH: /var/lib/weaviate
       DEFAULT_VECTORIZER_MODULE: none
-      ENABLE_MODULES: text2vec-openai,generative-openai
+      ENABLE_MODULES: ""
       CLUSTER_HOSTNAME: node1
     volumes:
       - weaviate_data:/var/lib/weaviate
     networks: [zu-network]
+    restart: unless-stopped
 
   # ─── KNOWLEDGE GRAPH ─────────────────────────────────────
   neo4j:
@@ -139,9 +151,10 @@ services:
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
-    environment:
-      MINIO_ROOT_USER: zuadmin
-      MINIO_ROOT_PASSWORD: zupassword123
+    # Root rotado (antes zuadmin/zupassword123): secrets/minio.env, copia en Vault
+    # secret/zu360/minio-root. Los servicios usan usuarios propios (media: zu-media,
+    # política limitada a zu-documents-local), nunca root.
+    env_file: ./secrets/minio.env
     volumes:
       - minio_data:/data
     networks: [zu-network]
@@ -169,18 +182,32 @@ services:
 
   # ─── SECRETS ─────────────────────────────────────────────
   vault:
+    # Modo servidor con almacenamiento persistente (no "dev": ese modo guarda todo
+    # en memoria y usa un token raíz fijo). Arranca sellado; scripts/vault-unseal.sh.
     image: hashicorp/vault:1.16
     container_name: zu-vault
     cap_add: [IPC_LOCK]
+    command: ["server", "-config=/zu/vault/config.hcl"]
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: zu-vault-dev-token
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://127.0.0.1:8200"
     ports:
       - "127.0.0.1:8200:8200"
     volumes:
-      - vault_data:/vault/data
-      - ./infra/vault:/vault/config
+      - vault_data:/vault/file
+      - ./infra/vault:/zu/vault:ro
     networks: [zu-network]
+    restart: unless-stopped
+
+  mailpit:
+    # Servidor SMTP de captura para staging: los correos llegan de verdad por SMTP
+    # pero no salen a Internet. Se reemplaza por el proveedor real (SMTP_HOST) sin
+    # cambiar código. Bandeja web solo en 127.0.0.1:8025.
+    image: axllent/mailpit:v1.20
+    container_name: zu-mailpit
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks: [zu-network]
+    restart: unless-stopped
 
   # ─── OBSERVABILIDAD ──────────────────────────────────────
   grafana:
@@ -218,21 +245,13 @@ services:
       - "127.0.0.1:4001:4001"
     env_file:
       - ./services/core/.env.dev
-      # Secretos reales de staging (DB_PASSWORD, REDIS_PASSWORD,
-      # RABBITMQ_URL, VAULT_TOKEN) — NUNCA committeado, ver instrucciones
-      # de despliegue. "required: false" para no romper otros checkouts
-      # (dev local, CI) que no tienen ni necesitan este archivo.
+      # Solo valores NO secretos propios del host (REDIS_USERNAME). Los
+      # secretos vienen de Vault (secret/zu360/core). Opcional para dev/CI.
       - path: ./services/core/.env
         required: false
     environment:
-      # Fase de pruebas técnicas con SST reales vía Google, previa al
-      # lanzamiento público (sprint "piloto con profesionales reales",
-      # 2026-10-20) — PILOT_SYNTHETIC_ENABLED y GOOGLE_SIGNUP_ENABLED
-      # son mutuamente excluyentes por diseño (ValidateSyntheticPilot),
-      # así que esto sale del modo sintético. Los módulos de alto riesgo
-      # (IA, biometría, exámenes médicos, drones) siguen bloqueados por
-      # sus propios flags, independientes de este cambio.
-      ENV: staging
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/core
       AUTO_MIGRATE: "false"
       PILOT_SYNTHETIC_ENABLED: "false"
       GOOGLE_SIGNUP_ENABLED: "true"
@@ -242,10 +261,13 @@ services:
       GOOGLE_SIGNUP_TERMS_VERSION: "1.0-piloto"
       GOOGLE_SIGNUP_PRIVACY_VERSION: "1.0-piloto"
       ALLOWED_ORIGINS: "https://www.zuseguridad360.com"
-      DB_HOST: postgres
-      DB_USER: zu_core_staging
-      DB_NAME: zu_core
-      DB_SSLMODE: require
+      DB_HOST: "postgres"
+      DB_USER: "zu_core_staging"
+      DB_NAME: "zu_core"
+      DB_SSLMODE: "require"
+    secrets:
+      - source: vault_token_core
+        target: vault_token
     depends_on:
       postgres:
         condition: service_healthy
@@ -253,7 +275,6 @@ services:
     restart: unless-stopped
 
   ai:
-    profiles: ["high-risk"]
     build:
       context: ./services/ai
       dockerfile: Dockerfile
@@ -262,13 +283,19 @@ services:
       - "127.0.0.1:4002:4002"
     env_file: ./services/ai/.env.dev
     environment:
-      AI_SERVICE_API_ENABLED: "false"
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/ai
+      AI_SERVICE_API_ENABLED: "true"
       AI_AUTONOMOUS_ENABLED: "false"
       VISION_ENABLED: "false"
       BIOMETRIC_ENABLED: "false"
       SENSITIVE_AI_ENABLED: "false"
       PRIVACY_PROCESSING_APPROVED: "false"
-    depends_on: [postgres, weaviate, neo4j, rabbitmq]
+      WEAVIATE_URL: "http://weaviate:8080"
+    secrets:
+      - source: vault_token_ai
+        target: vault_token
+    depends_on: [postgres, weaviate, rabbitmq, vault]
     networks: [zu-network]
     restart: unless-stopped
 
@@ -280,8 +307,15 @@ services:
     ports:
       - "127.0.0.1:4003:4003"
     env_file: ./services/documents/.env.dev
-    depends_on: [postgres, rabbitmq, minio]
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/documents
+    secrets:
+      - source: vault_token_documents
+        target: vault_token
+    depends_on: [postgres, rabbitmq, minio, vault]
     networks: [zu-network]
+    restart: unless-stopped
 
   media:
     build:
@@ -292,11 +326,15 @@ services:
       - "127.0.0.1:4004:4004"
     env_file:
       - ./services/media/.env.dev
-      # Secretos de staging (JWT_SECRET compartido con Core, DATABASE_URL a zu_core
-      # con SSL) — nunca commiteado; opcional para dev local/CI.
-      - path: ./services/media/.env
-        required: false
-    depends_on: [minio, rabbitmq]
+      # Secretos: Vault (secret/zu360/<servicio>), nunca en archivos del repo.
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/media
+      S3_PUBLIC_ENDPOINT: "http://localhost:9000"
+    secrets:
+      - source: vault_token_media
+        target: vault_token
+    depends_on: [minio, rabbitmq, vault]
     networks: [zu-network]
     restart: unless-stopped
 
@@ -308,8 +346,19 @@ services:
     ports:
       - "127.0.0.1:4005:4005"
     env_file: ./services/mail/.env.dev
-    depends_on: [rabbitmq]
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/mail
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_TLS: none
+      FROM_EMAIL: noreply@zuseguridad360.com
+    secrets:
+      - source: vault_token_mail
+        target: vault_token
+    depends_on: [rabbitmq, vault, mailpit]
     networks: [zu-network]
+    restart: unless-stopped
 
   notifications:
     build:
@@ -319,11 +368,17 @@ services:
     ports:
       - "127.0.0.1:4006:4006"
     env_file: ./services/notifications/.env.dev
-    depends_on: [rabbitmq, redis]
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/notifications
+    secrets:
+      - source: vault_token_notifications
+        target: vault_token
+    depends_on: [rabbitmq, redis, vault]
     networks: [zu-network]
+    restart: unless-stopped
 
   autopilot:
-    profiles: ["high-risk"]
     build:
       context: ./services/autopilot
       dockerfile: Dockerfile
@@ -332,9 +387,15 @@ services:
       - "127.0.0.1:4007:4007"
     env_file: ./services/autopilot/.env.dev
     environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/autopilot
       AUTOPILOT_ENABLED: "false"
-    depends_on: [postgres, rabbitmq, redis]
+    secrets:
+      - source: vault_token_autopilot
+        target: vault_token
+    depends_on: [postgres, rabbitmq, redis, vault]
     networks: [zu-network]
+    restart: unless-stopped
 
   attention:
     build:
@@ -345,11 +406,14 @@ services:
       - "127.0.0.1:4008:4008"
     env_file:
       - ./services/attention/.env.dev
-      # Secretos de staging (JWT_SECRET compartido con Core, DATABASE_URL a zu_core
-      # con SSL) — nunca commiteado; opcional para dev local/CI.
-      - path: ./services/attention/.env
-        required: false
-    depends_on: [postgres, redis]
+      # Secretos: Vault (secret/zu360/<servicio>), nunca en archivos del repo.
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/attention
+    secrets:
+      - source: vault_token_attention
+        target: vault_token
+    depends_on: [postgres, redis, vault]
     networks: [zu-network]
     restart: unless-stopped
 
@@ -361,8 +425,15 @@ services:
     ports:
       - "127.0.0.1:4009:4009"
     env_file: ./services/onboarding/.env.dev
-    depends_on: [postgres, rabbitmq]
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/onboarding
+    secrets:
+      - source: vault_token_onboarding
+        target: vault_token
+    depends_on: [postgres, rabbitmq, vault]
     networks: [zu-network]
+    restart: unless-stopped
 
   billing:
     build:
@@ -373,11 +444,15 @@ services:
       - "127.0.0.1:4010:4010"
     env_file:
       - ./services/billing/.env.dev
-      # Secretos de staging (JWT_SECRET compartido con Core, DATABASE_URL a zu_core
-      # con SSL) — nunca commiteado; opcional para dev local/CI.
-      - path: ./services/billing/.env
-        required: false
-    depends_on: [postgres, rabbitmq]
+      # Secretos: Vault (secret/zu360/<servicio>), nunca en archivos del repo.
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/billing
+      AUTO_MIGRATE: "false"
+    secrets:
+      - source: vault_token_billing
+        target: vault_token
+    depends_on: [postgres, rabbitmq, vault]
     networks: [zu-network]
     restart: unless-stopped
 
@@ -389,8 +464,16 @@ services:
     ports:
       - "127.0.0.1:4011:4011"
     env_file: ./services/sla/.env.dev
-    depends_on: [postgres, redis]
+    environment:
+      <<: *vault-env
+      VAULT_SECRET_PATH: secret/data/zu360/sla
+      SLA_INSPECTION_REVIEW_MINUTES: "4320"
+    secrets:
+      - source: vault_token_sla
+        target: vault_token
+    depends_on: [postgres, redis, vault]
     networks: [zu-network]
+    restart: unless-stopped
 
   drone:
     profiles: ["high-risk"]
@@ -405,3 +488,27 @@ services:
       DRONE_ENABLED: "false"
     depends_on: [postgres, emqx, redis]
     networks: [zu-network]
+
+secrets:
+  vault_token_mail:
+    file: ./secrets/vault/mail.token
+  vault_token_notifications:
+    file: ./secrets/vault/notifications.token
+  vault_token_sla:
+    file: ./secrets/vault/sla.token
+  vault_token_onboarding:
+    file: ./secrets/vault/onboarding.token
+  vault_token_autopilot:
+    file: ./secrets/vault/autopilot.token
+  vault_token_documents:
+    file: ./secrets/vault/documents.token
+  vault_token_core:
+    file: ./secrets/vault/core.token
+  vault_token_billing:
+    file: ./secrets/vault/billing.token
+  vault_token_attention:
+    file: ./secrets/vault/attention.token
+  vault_token_media:
+    file: ./secrets/vault/media.token
+  vault_token_ai:
+    file: ./secrets/vault/ai.token

@@ -30,6 +30,10 @@ def load_vault_secrets() -> None:
 
     addr = os.getenv("VAULT_ADDR", "http://localhost:8200")
     token = os.getenv("VAULT_TOKEN", "zu-vault-dev-token")
+    token_file = os.getenv("VAULT_TOKEN_FILE")
+    if token_file:
+        with open(token_file) as fh:
+            token = fh.read().strip()
     path = os.getenv("VAULT_SECRET_PATH", "secret/data/zu360/documents")
 
     client = hvac.Client(url=addr, token=token)

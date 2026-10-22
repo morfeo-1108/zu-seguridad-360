@@ -320,3 +320,103 @@ auditoría RBAC exhaustiva — esa requiere una base real con fixtures de los 7 
 trabajo considerablemente más grande. Lo que existe hoy es una red de seguridad barata
 contra el error más costoso (registrar una ruta nueva sin autenticación), no un sustituto
 de la matriz completa.
+
+---
+
+## Apéndice — estado en vivo verificado el 2026-10-21
+
+Reconciliación del inventario del 2026-10-19 con la realidad en ejecución de hoy. Nada aquí
+sustituye lo anterior; lo complementa con lo que cambió al poner el sistema en línea.
+
+- **Publicado y respondiendo en Internet:** `https://www.zuseguridad360.com` → `200`
+  (vía Cloudflare Tunnel → `http://localhost:3000`, frontend Next.js). Primera vez que el
+  sistema está accesible públicamente. Ver `INFRAESTRUCTURA.md`.
+- **Microservicios efectivamente arriba hoy (4 de 12):** `zu-core` (4001), `zu-billing`
+  (4010), `zu-attention` (4008), `zu-media` (4004), más `zu-postgres`, `zu-redis`,
+  `zu-rabbitmq`, `zu-minio`. Los otros 8 (ai, documents, mail, notifications, autopilot,
+  onboarding, sla, drone) **no están levantados** en esta instancia en vivo.
+- **Modo de ejecución:** `ENV=development`. El sitio en vivo **no corre con configuración de
+  producción**; el guard de arranque que rechaza secretos de desarrollo en `ENV=production`
+  (§1.5) no está activo porque no se está en ese modo.
+- **Credenciales externas de producción:** siguen **sin cargarse** (grep sobre todos los
+  `.env*`: ninguna clave real de Wompi, DIAN, SendGrid, WhatsApp). Confirmado hoy. El sistema,
+  tal como está publicado, **no puede cobrar dinero real ni emitir factura DIAN**.
+- **Sin cambios respecto al 19-oct en:** multi-tenant monolítico por columna, Weaviate RAG
+  vacío (sin corpus normativo), Vault definido pero no en uso en runtime, backup/restore
+  probados una vez en local.
+
+---
+
+## Sprint 2026-10-22 — Líneas A a G (todo verificado ejecutándolo)
+
+Convención: ✅ verificado de punta a punta en el host real · ⚠️ funciona con hueco declarado · ❌ no existe · 🔴 bloquea producción.
+Las pruebas se hicieron con un **tenant de QA aislado** (`scripts/qa-tenant.sh`, datos ficticios, tenant propio; ningún profesional del piloto lo ve).
+
+### Línea A — los 8 servicios que faltaban (hoy 12/12 arriba)
+
+Hallazgo de partida: mail, notifications, onboarding, sla y autopilot eran esqueletos — endpoints sin autenticación
+(mail era un **relay abierto**), colas que nadie publicaba ni enlazaba, pasos de onboarding marcados "hechos" tras
+`sleep(500ms)`, 9 workers de autopilot que solo imprimían un log. Se reescribieron sobre un patrón común
+(`internal/auth`: JWT con las reglas de Core; `internal/bus`: consumidor con reconexión, reintento con TTL y cola muerta).
+
+| Servicio | Estado | Evidencia |
+|---|---|---|
+| mail | ✅ (SMTP de captura) | Cola `zu.mail.outbound` → SMTP → Mailpit; reintento verificado (SMTP caído → `zu.mail.retry` → entregado a los 60 s); inyección CRLF rechazada; 401 sin token interno; STARTTLS obligatorio con proveedor real. ⚠️ Mailpit **no entrega a Internet**: falta proveedor SMTP real + SPF/DKIM/DMARC. |
+| notifications | ✅ in-app + correo · ⚠️ WhatsApp/push | Exchange `zu.notifications` → bandeja in-app (esquema propio) + correo vía mail; auditoría por canal. WhatsApp: código listo (plantillas aprobadas), **sin credenciales Meta**. Push: FCM legacy fue retirado por Google en 2024; el cliente HTTP v1 no existe → falla con mensaje explícito. |
+| sla | ✅ | Core `inspection.completed` → plazo abierto → vencido → notificación in-app + correo → `inspection.approved` cierra. Idempotente; vigilante con `SKIP LOCKED`. Plazo: 72 h (regla de servicio, no legal). |
+| onboarding | ✅ | Progreso derivado de registros reales de Core (8 pasos + trabajadores bloqueado por compuerta); mide duración real. Evento `company.created` falsificado con otro tenant → cola muerta. |
+| autopilot | ✅ (solo briefing) | Briefing 06:30 L–S America/Bogota, solo lectura, con fundamento normativo (p. ej. Res. 2013/1986 art. 7). Acciones autónomas siguen **bloqueadas por diseño**. |
+| documents | ✅ | PDF real persistido con versión, autor y SHA‑256 (descarga = huella guardada); identidad de la empresa tomada de Core. Bugs corregidos: el PDF se **descartaba**; `/certificates/verify` decía "válido" para cualquier folio; `signatures.py` "firmaba" devolviendo `is_valid: true`; **el certificado de capacitación nunca pudo generarse** (`drawImage` con `BytesIO`). |
+| ai | ✅ consulta normativa · ❌ resto | Solo se carga el RAG; agentes, visión, OCR y grafo no se importan con sus flags apagadas. `torch/transformers/opencv` estaban en requirements sin que nada los importara: retirados. |
+| drone | ❌ por diseño | Health-only: no hay controles de seguridad física ni autorización de operador. No se habilita. |
+
+Cambios en Core desplegados: publicador RabbitMQ que **reconecta** (antes publicaba en un canal muerto en silencio tras un
+reinicio del broker) y eventos `inspection.completed/approved`. Media: los archivos devolvían `http://localhost:9000/...`
+(inaccesibles para cualquier usuario; además **el bucket no existía**); ahora URL estable vía proxy + enlace firmado de 15 min.
+
+### Línea B — corpus normativo real (Weaviate)
+
+✅ 16 normas desde textos oficiales (normogramas públicos y SISJUR Bogotá), 889 fragmentos Artículo→Parágrafo, notas
+editoriales separadas del texto. **El constructor falla si el manifiesto dice "vigente" y el texto oficial dice
+derogada**, y así se detectaron 3 derogatorias que el diseño original daba por vigentes:
+Res. 2346/2007 (→ Res. 1843/2025), **Res. 2404/2019 (→ Res. 2764/2022)** y **Res. 0652/2012 (→ Res. 3461/2025)**.
+GTC 45 excluida (ICONTEC, derechos de autor).
+
+Evaluación con 14 preguntas reales por la API desplegada: **top‑1 10/14, top‑3 12/14, latencia media 0,41 s**.
+Fallos: plazo de reporte de AT a la ARL (devuelve Res. 1401 art. 14), "datos sensibles" (Ley 1581 art. 4 en vez del 5).
+Modelos medidos: e5‑large inviable en este CPU (estimado 4–5 h para indexar), mpnet peor y 9× más lento que MiniLM.
+
+### Línea C — Vault y ENV=production en los 12
+
+✅ Vault en modo servidor (antes modo dev en memoria con token raíz fijo), KV v2, **un token de solo-lectura por servicio**
+entregado como Docker secret. `ENV=production` en todos. Ningún `.env` del repo contiene secretos (Core conserva solo
+`REDIS_USERNAME`). Rotados: JWT_SECRET compartido (expuesto en una salida de terminal de esta sesión), clave root de
+MinIO (era `zuadmin/zupassword123`), usuario MinIO propio para media con política limitada a su bucket.
+⚠️ Tramo Vault↔servicios sin TLS (red Docker interna); ⚠️ billing/attention siguen usando el rol de BD de Core.
+
+### Línea D — backup y restore en el host real
+
+✅ `scripts/backup-prod.sh`: base `zu_core` completa (todos los esquemas) + roles, cifrado AES‑256, retención 14 días,
+cron diario 02:30 y verificación de restore semanal. Restore verificado: **42 tablas, 68 filas, conteos idénticos**.
+⚠️ Las copias están en el mismo disco: sin copia externa, un daño del disco se lleva base y backups.
+
+### Línea E — Wompi y DIAN cableados
+
+✅ con Wompi **simulado** (marcado) contra PostgreSQL real: factura del periodo (IVA en enteros) → Web Checkout con firma
+de integridad → webhook firmado → **conciliación contra la API de Wompi** → pagada → outbox → factura electrónica.
+Webhook repetido no duplica; webhook alterado rechazado. La firma de integridad coincide con el ejemplo publicado por
+Wompi; **el CUFE coincide con el ejemplo resuelto del Anexo Técnico de la DIAN**.
+🔴 Pendiente de terceros: llaves Wompi (sandbox y luego producción); resolución de facturación, NIT del emisor y
+certificado digital. ❌ Firma XAdES y transmisión a la DIAN no implementadas (dependen de esa decisión: ver pregunta abierta).
+
+### Línea F — pantallas
+
+✅ Briefing diario (antes "Autopilot" bloqueado), Configuración (perfil fiscal), Consulta normativa (antes "SISO-Bot"),
+Facturación con facturas/pago, Documental con enlaces firmados y documentos generados, campana de notificaciones,
+tarjetas de plazos y onboarding. Siguen bloqueadas a propósito: Agentes (requiere LLM y aprobación de tratamiento),
+Drones y Vuelo (seguridad física).
+
+### Línea G — portada
+
+Ver sección de rendimiento en el informe de la sesión; contenido regido por `frontend/web/lib/landing-claims.ts`
+(solo se publica como hecho lo `verificado`, con su evidencia).

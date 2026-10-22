@@ -74,7 +74,7 @@ func main() {
 	medicalSvc := service.NewMedicalExamService(db, amqp, cfg.SyntheticPilotEnabled)
 	evidenceSvc := service.NewEvidenceService(db)
 	eppSvc := service.NewEPPService(db)
-	inspectionSvc := service.NewInspectionService(db)
+	inspectionSvc := service.NewInspectionService(db).WithEvents(amqp)
 	committeeSvc := service.NewCommitteeService(db)
 	indicatorSvc := service.NewIndicatorService(incidentRepo, employeeRepo)
 	legalSvc := service.NewLegalRequirementService(db)

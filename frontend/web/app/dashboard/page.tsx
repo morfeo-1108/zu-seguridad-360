@@ -6,6 +6,7 @@ import { Card, Badge, KPICard, Spinner } from "@/components/ui";
 import { useAlerts, useCompanies, useEmployees, useCompanyIncidents } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/store";
 import { REAL_MODULES } from "@/lib/modules";
+import { OnboardingCard, SLACard } from "@/components/modules/ops-cards";
 import { formatDateTime } from "@/lib/utils";
 
 const alertCategoryLabel: Record<string, string> = {
@@ -56,6 +57,11 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SLACard />
+        <OnboardingCard companyId={companyId} />
       </div>
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

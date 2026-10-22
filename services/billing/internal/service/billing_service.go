@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/zu-seguridad/billing/internal/model"
-	"github.com/zu-seguridad/billing/internal/wompi"
 	"gorm.io/gorm"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -36,8 +36,6 @@ var Plans = map[model.PlanCode]PlanInfo{
 // decision, not an operational one.
 const FounderSlotsTotal = 20
 
-const IVARate = 0.19
-
 var ErrCompanyQuotaExceeded = errors.New("adding this company would exceed the plan's company quota")
 var ErrNoActiveSubscription = errors.New("tenant has no active subscription")
 
@@ -45,51 +43,11 @@ var ErrNoActiveSubscription = errors.New("tenant has no active subscription")
 const firstCompanyWithoutPlan = 1
 
 type BillingService struct {
-	db    *gorm.DB
-	wompi *wompi.Client
+	db *gorm.DB
 }
 
-func NewBillingService(db *gorm.DB, wompiClient *wompi.Client) *BillingService {
-	return &BillingService{db: db, wompi: wompiClient}
-}
-
-// ChargeInvoice attempts a real Wompi charge for a pending invoice. It never
-// marks an invoice paid based on assumption — only on an APPROVED response
-// from Wompi, recorded via the invoice's own status field. Declined/errored
-// attempts are recorded too, so a human can see exactly what Wompi said
-// instead of the invoice silently staying "pending" forever.
-func (s *BillingService) ChargeInvoice(ctx context.Context, invoiceID uuid.UUID, paymentMethod map[string]interface{}, acceptanceToken string) error {
-	var invoice model.Invoice
-	if err := s.db.WithContext(ctx).Where("id = ?", invoiceID).First(&invoice).Error; err != nil {
-		return err
-	}
-	if invoice.Status != model.InvoiceStatusPending {
-		return fmt.Errorf("invoice %s is not pending (status=%s)", invoiceID, invoice.Status)
-	}
-
-	resp, err := s.wompi.CreateTransaction(ctx, wompi.CreateTransactionInput{
-		AmountInCents:   invoice.Total,
-		Currency:        "COP",
-		Reference:       invoice.ID.String(),
-		PaymentMethod:   paymentMethod,
-		AcceptanceToken: acceptanceToken,
-	})
-	if err != nil {
-		return fmt.Errorf("wompi charge failed: %w", err)
-	}
-
-	status := model.InvoiceStatusPending
-	switch resp.Data.Status {
-	case "APPROVED":
-		status = model.InvoiceStatusPaid
-	case "DECLINED", "ERROR", "VOIDED":
-		status = model.InvoiceStatusOverdue
-	}
-	updates := map[string]interface{}{"wompi_tx_id": resp.Data.ID, "status": status}
-	if status == model.InvoiceStatusPaid {
-		updates["paid_at"] = time.Now().UTC()
-	}
-	return s.db.WithContext(ctx).Model(&invoice).Where("id = ?", invoiceID).Updates(updates).Error
+func NewBillingService(db *gorm.DB) *BillingService {
+	return &BillingService{db: db}
 }
 
 // CreateSubscription provisions one subscription per tenant/professional. A
@@ -203,20 +161,22 @@ func (s *BillingService) generateInvoice(ctx context.Context, sub model.Subscrip
 		// instead of silently keeping the founder discount forever.
 		log.Printf("⚠️  tenant %s: precio fundador venció el %s pero la suscripción sigue facturando a precio fundador — requiere reprecio manual", sub.TenantID, sub.FounderPriceUntil.Format("2006-01-02"))
 	}
-	iva := int64(float64(sub.PriceMonthly) * IVARate)
+	iva := ivaOf(sub.PriceMonthly)
 	total := sub.PriceMonthly + iva
 
 	invoice := &model.Invoice{
 		TenantID:       sub.TenantID,
 		SubscriptionID: sub.ID,
-		DIANNumber:     s.generateDIANNumber(),
-		Status:         model.InvoiceStatusPending,
-		Subtotal:       sub.PriceMonthly,
-		IVA:            iva,
-		Total:          total,
-		PeriodStart:    sub.CurrentPeriodStart,
-		PeriodEnd:      sub.CurrentPeriodEnd,
-		DueAt:          time.Now().AddDate(0, 0, 5),
+		// Internal reference; the DIAN consecutive is assigned when the
+		// electronic invoice is issued after payment (Payments.IssueElectronic).
+		DIANNumber:  "ZU-" + strings.ToUpper(uuid.NewString()[:8]),
+		Status:      model.InvoiceStatusPending,
+		Subtotal:    sub.PriceMonthly,
+		IVA:         iva,
+		Total:       total,
+		PeriodStart: sub.CurrentPeriodStart,
+		PeriodEnd:   sub.CurrentPeriodEnd,
+		DueAt:       time.Now().AddDate(0, 0, 5),
 	}
 
 	if err := s.db.WithContext(ctx).Create(invoice).Error; err != nil {
@@ -226,17 +186,6 @@ func (s *BillingService) generateInvoice(ctx context.Context, sub model.Subscrip
 	// Publicar para cobro automático Wompi + generación PDF DIAN
 	log.Printf("📄 Factura %s generada: $%d COP", invoice.DIANNumber, invoice.Total/100)
 	return invoice, nil
-}
-
-func (s *BillingService) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, wompiTxID string) error {
-	now := time.Now()
-	return s.db.WithContext(ctx).Model(&model.Invoice{}).
-		Where("id = ?", invoiceID).
-		Updates(map[string]interface{}{
-			"status":      model.InvoiceStatusPaid,
-			"paid_at":     now,
-			"wompi_tx_id": wompiTxID,
-		}).Error
 }
 
 func (s *BillingService) SuspendOverdue(ctx context.Context) (int, error) {
@@ -262,10 +211,6 @@ func (s *BillingService) GetMRR(ctx context.Context, tenantID uuid.UUID) (map[st
 		"active_subs": len(subs),
 		"arr_cop":     mrr * 12 / 100,
 	}, nil
-}
-
-func (s *BillingService) generateDIANNumber() string {
-	return fmt.Sprintf("FE-%d-%d", time.Now().Year(), time.Now().UnixNano()%1000000)
 }
 
 // ── Idempotencia (hallazgo de auditoría #2) ──────────────────

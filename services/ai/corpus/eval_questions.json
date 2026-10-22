@@ -1,0 +1,16 @@
+[
+ {"q": "¿Con qué frecuencia debe reunirse el COPASST?", "expect": [["resolucion_2013_1986", "7"]]},
+ {"q": "¿Dentro de qué plazo se debe reportar un accidente de trabajo a la ARL?", "expect": [["decreto_1295_1994", "62"], ["decreto_1072_2015", "2.2.4.1.7"]]},
+ {"q": "¿Quiénes deben integrar el equipo investigador de un accidente de trabajo?", "expect": [["resolucion_1401_2007", "7"]]},
+ {"q": "¿En qué plazo se remite a la ARL la investigación de un accidente grave o mortal?", "expect": [["resolucion_1401_2007", "14"]]},
+ {"q": "¿Qué se entiende por accidente de trabajo?", "expect": [["ley_1562_2012", "3"]]},
+ {"q": "¿Qué es una enfermedad laboral?", "expect": [["ley_1562_2012", "4"]]},
+ {"q": "¿Qué estándares mínimos debe cumplir una empresa de diez o menos trabajadores con riesgo I, II o III?", "expect": [["resolucion_0312_2019", "3"]]},
+ {"q": "¿Cuáles son las obligaciones de los empleadores en el Sistema de Gestión de Seguridad y Salud en el Trabajo?", "expect": [["decreto_1072_2015", "2.2.4.6.8"]]},
+ {"q": "¿Qué tipos de evaluaciones médicas ocupacionales existen?", "expect": [["resolucion_1843_2025", "8"]]},
+ {"q": "¿Cuáles son las modalidades de acoso laboral?", "expect": [["ley_1010_2006", "2"]]},
+ {"q": "¿Qué datos personales se consideran sensibles?", "expect": [["ley_1581_2012", "5"]]},
+ {"q": "¿Con qué periodicidad se debe evaluar el riesgo psicosocial?", "expect": [["resolucion_2764_2022", "3"]]},
+ {"q": "¿Cómo se conforma el Comité de Convivencia Laboral?", "expect": [["resolucion_3461_2025", "3"]]},
+ {"q": "¿Qué se considera trabajo en alturas?", "expect": [["resolucion_4272_2021", "3"]]}
+]

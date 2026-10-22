@@ -6,7 +6,10 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.12-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5 wkhtmltopdf && rm -rf /var/lib/apt/lists/*
+# PDF generation uses ReportLab (pure Python); wkhtmltopdf was never imported by
+# the code and was removed from Debian's repos, so it broke the build. Only libpq5
+# (psycopg runtime) is needed here.
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /root/.local /root/.local
 COPY . .
 ENV PATH=/root/.local/bin:$PATH

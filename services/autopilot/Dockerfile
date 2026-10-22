@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache git ca-certificates tzdata
 COPY go.mod go.sum ./
@@ -16,5 +16,5 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /bin/server /server
 COPY --from=builder /app/config /config
 ENV TZ=America/Bogota
-EXPOSE 4004
+EXPOSE 4007
 ENTRYPOINT ["/server"]

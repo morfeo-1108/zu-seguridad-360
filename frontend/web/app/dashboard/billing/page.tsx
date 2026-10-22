@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Building2, CheckCircle2, Sparkles, Users } from "lucide-react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { InvoicesCard } from "@/components/modules/invoices-card";
 import { Badge, Button, Card, PageHeader, Spinner } from "@/components/ui";
 import { billingAPI } from "@/lib/api";
 import { usePlans, useSubscription } from "@/lib/hooks";
@@ -33,7 +34,7 @@ export default function BillingPage() {
 
   return (
     <DashboardShell>
-      <PageHeader title="Facturación" description="Planes por profesional, con cupo de empresas, usuarios y trabajadores administrados. El cobro automático con Wompi sigue en pruebas de sandbox — elegir un plan aquí lo registra, no genera un cargo." />
+      <PageHeader title="Facturación" description="Planes por profesional, con cupo de empresas, usuarios y trabajadores administrados. Elegir un plan lo registra; el pago se hace por factura, con Wompi." />
 
       <Card className="mb-5 border-amber-300 bg-amber-50 p-3.5">
         <div className="flex items-start gap-2.5">
@@ -58,6 +59,8 @@ export default function BillingPage() {
           </div>
         </Card>
       )}
+
+      {!subLoading && <InvoicesCard tenantId={tenantId} hasSubscription={!!subscription} />}
 
       {plansLoading ? <Spinner size={24} /> : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
