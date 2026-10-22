@@ -16,7 +16,7 @@ const config: Config = {
           green: "#16A34A", amber: "#D97706", red: "#DC2626",
         },
       },
-      fontFamily: { sans: ["DM Sans", "sans-serif"], mono: ["DM Mono", "monospace"] },
+      fontFamily: { sans: ["DM Sans", "sans-serif"], mono: ["DM Mono", "monospace"], display: ["var(--font-display)", "Georgia", "serif"] },
       boxShadow: {
         "zu-sm": "0 1px 2px rgba(0,0,0,0.06)",
         "zu": "0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)",
