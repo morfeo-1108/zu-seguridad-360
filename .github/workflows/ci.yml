@@ -31,12 +31,18 @@ jobs:
           go-version: "1.24.0"
           cache-dependency-path: services/${{ matrix.service }}/go.sum
 
+      # Compilar antes del lint deja paquetes y dependencias en la caché de Go;
+      # sin esto, golangci-lint de core gasta casi todo su límite solo en cargarlos.
+      - name: Build
+        working-directory: services/${{ matrix.service }}
+        run: go build ./... && go vet ./...
+
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.8 # fijada: una versión nueva del linter no debe romper el CI sin cambios en el código
           working-directory: services/${{ matrix.service }}
-          args: --timeout=5m # core supera el minuto por defecto cuando hay varias ejecuciones a la vez
+          args: --timeout=10m # el de core rozó los 5 min en un runner lento (incluye la carga de paquetes)
 
       - name: Test
         working-directory: services/${{ matrix.service }}
