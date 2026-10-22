@@ -25,6 +25,12 @@ type Props = {
 // after the page has loaded and the browser is idle. The pin exists from
 // mount, so the video arriving never shifts the layout. With
 // prefers-reduced-motion the poster stays and nothing is pinned or scrubbed.
+//
+// Robustness, so the hero works wherever the page is opened:
+// - if the chosen format fails to decode, the other one is tried (WebM <-> MP4);
+// - if the browser refuses to load media on its own (iOS Low Power Mode, some
+//   in-app browsers), the first tap or click loads and primes it: a user
+//   gesture is always allowed to start media. Until then the poster shows.
 export function ScrubVideo({ triggerRef, poster, sources, className }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
@@ -58,12 +64,16 @@ export function ScrubVideo({ triggerRef, poster, sources, className }: Props) {
     })();
 
     const apple = /Apple/.test(navigator.vendor);
+    const set = window.matchMedia("(max-width: 767px)").matches ? sources.narrow : sources.wide;
+    // Safari (macOS and iOS) gets H.264: hardware-decoded and seekable
+    // frame by frame. Its VP9 support is newer and seeks poorly.
+    const first = !apple && video.canPlayType('video/webm; codecs="vp9"') ? set.webm : set.mp4;
+    const second = first === set.webm ? set.mp4 : set.webm;
+    let attached = false;
     const attach = () => {
-      if (killed) return;
-      const set = window.matchMedia("(max-width: 767px)").matches ? sources.narrow : sources.wide;
-      // Safari (macOS and iOS) gets H.264: hardware-decoded and seekable
-      // frame by frame. Its VP9 support is newer and seeks poorly.
-      video.src = !apple && video.canPlayType('video/webm; codecs="vp9"') ? set.webm : set.mp4;
+      if (killed || attached) return;
+      attached = true;
+      video.src = first;
       // Safari loads little more than metadata otherwise and the scrub shows
       // the poster; other browsers fetch ranges as the user scrolls, so they
       // keep preload="none" and do not spend 3-5 MB of mobile data up front.
@@ -74,10 +84,27 @@ export function ScrubVideo({ triggerRef, poster, sources, className }: Props) {
     // immediately pause it once (muted + playsInline is allowed; in Low Power
     // Mode it is refused and the poster stays). Only on Safari: in Chrome a
     // play() turns into a full download of the file.
-    const onMeta = () => { if (apple) video.play().then(() => video.pause()).catch(() => {}); };
-    const onData = () => { setReady(true); requestSeek(); };
-    video.addEventListener("loadedmetadata", onMeta, { once: true });
+    const prime = () => { video.play()?.then(() => video.pause()).catch(() => {}); };
+    const onMeta = () => { if (apple) prime(); };
+    const onData = () => { setReady(true); requestSeek(); removeGesture(); };
+    const onError = () => {
+      if (video.getAttribute("src") === second || !second) return; // both failed: the poster stays
+      video.src = second;
+      video.load();
+    };
+    // Fallback for browsers that will not load media without a gesture.
+    const gestures = ["touchend", "click", "keydown"] as const;
+    const onGesture = () => {
+      if (video.readyState >= 2) return removeGesture();
+      if (!attached) attach();
+      else if (video.networkState !== HTMLMediaElement.NETWORK_LOADING) video.load();
+      prime();
+    };
+    const removeGesture = () => gestures.forEach((g) => window.removeEventListener(g, onGesture));
+    gestures.forEach((g) => window.addEventListener(g, onGesture, { passive: true }));
+    video.addEventListener("loadedmetadata", onMeta);
     video.addEventListener("loadeddata", onData);
+    video.addEventListener("error", onError);
     const idle = (cb: () => void) => {
       const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
       if (w.requestIdleCallback) w.requestIdleCallback(cb, { timeout: 2500 });
@@ -92,6 +119,8 @@ export function ScrubVideo({ triggerRef, poster, sources, className }: Props) {
       st?.kill();
       video.removeEventListener("loadeddata", onData);
       video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("error", onError);
+      removeGesture();
     };
   }, [triggerRef, sources]);
 
