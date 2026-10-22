@@ -77,8 +77,14 @@ producción externas** (Wompi/DIAN/correo/WhatsApp) — ver `ESTADO_SISTEMA.md` 
 ### Despliegues
 - Regla: a producción solo llega un commit limpio que ya esté en `origin/master` (rama + PR fusionado).
   Ambos scripts lo comprueban y se niegan a desplegar si no se cumple.
-- Frontend: `scripts/deploy-frontend.sh` (build en paralelo, intercambio, reinicio, reversión automática).
-  Commit en vivo: `frontend/web/.next/REVISION`.
+- Frontend: corre desde su propio clon, **`/srv/zu360/web`** (systemd `zu360-frontend`,
+  `WorkingDirectory=/srv/zu360/web/frontend/web`), separado de la carpeta de desarrollo
+  `/home/morfeo/zu-seguridad-360`. Nadie edita `/srv/zu360/web`: cambiar de rama o borrar archivos en la
+  carpeta de desarrollo no afecta lo que sirve el dominio (antes sí: el 2026-10-22 el hero quedó sin video
+  ~1 h 40 min por un renombre en una rama).
+  Desplegar: `/srv/zu360/web/scripts/deploy-frontend.sh` (se pone en `origin/master`, `npm ci` si cambió el
+  lockfile, build en paralelo, reinicio del proceso de systemd, reversión automática). Desde otra carpeta
+  se niega. Commit en vivo: `/srv/zu360/web/frontend/web/.next/REVISION`.
 - Backend: `scripts/deploy-backend.sh [servicio…]` (build, etiqueta `zu-seguridad-360-<svc>:<sha>`,
   recreación, verificación de `/health` y reversión a la imagen anterior del servicio que falle).
   Historial: `.deploy/backend.log`.
