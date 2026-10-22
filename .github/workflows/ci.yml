@@ -21,6 +21,7 @@ jobs:
     name: Test Go Services
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # el fallo de un servicio no debe cancelar ni ocultar el resultado de los demás
       matrix:
         service: [core, mail, notifications, autopilot, attention, onboarding, billing, sla, drone, media]
     steps:
@@ -35,6 +36,7 @@ jobs:
         with:
           version: v1.64.8 # fijada: una versión nueva del linter no debe romper el CI sin cambios en el código
           working-directory: services/${{ matrix.service }}
+          args: --timeout=5m # core supera el minuto por defecto cuando hay varias ejecuciones a la vez
 
       - name: Test
         working-directory: services/${{ matrix.service }}
@@ -53,6 +55,7 @@ jobs:
     name: Test Python Services
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [ai, documents]
     steps:
