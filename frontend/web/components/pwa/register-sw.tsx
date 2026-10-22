@@ -14,6 +14,12 @@ export function RegisterSW() {
         console.warn("SW registro falló:", err);
       });
     };
+    // Si la página ya terminó de cargar antes de hidratar, "load" no vuelve a
+    // dispararse: registrar de inmediato.
+    if (document.readyState === "complete") {
+      onLoad();
+      return;
+    }
     window.addEventListener("load", onLoad);
     return () => window.removeEventListener("load", onLoad);
   }, []);
