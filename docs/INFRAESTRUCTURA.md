@@ -74,6 +74,15 @@ producción externas** (Wompi/DIAN/correo/WhatsApp) — ver `ESTADO_SISTEMA.md` 
 
 ## Operación (2026-10-22)
 
+### Despliegues
+- Regla: a producción solo llega un commit limpio que ya esté en `origin/master` (rama + PR fusionado).
+  Ambos scripts lo comprueban y se niegan a desplegar si no se cumple.
+- Frontend: `scripts/deploy-frontend.sh` (build en paralelo, intercambio, reinicio, reversión automática).
+  Commit en vivo: `frontend/web/.next/REVISION`.
+- Backend: `scripts/deploy-backend.sh [servicio…]` (build, etiqueta `zu-seguridad-360-<svc>:<sha>`,
+  recreación, verificación de `/health` y reversión a la imagen anterior del servicio que falle).
+  Historial: `.deploy/backend.log`.
+
 ### Secretos: Vault
 - Modo servidor, almacenamiento en el volumen `vault_data`, KV v2 en `secret/zu360/<servicio>`.
 - Llaves de unseal + token raíz: `~/.zu360-vault/init.json` (600). **Muévalo a un gestor de contraseñas.**
