@@ -4,6 +4,7 @@
 #   2. intercambio .next → .next-prev, .next-build → .next
 #   3. reinicio del proceso (systemd zu360-frontend lo relanza en ~5 s)
 #   4. verificación; si falla, revierte solo.
+# Solo despliega un commit limpio que ya esté en origin/master.
 # El commit desplegado queda en frontend/web/.next/REVISION ("<sha> <fecha UTC>").
 #   ./scripts/deploy-frontend.sh            despliega
 #   ./scripts/deploy-frontend.sh rollback   vuelve a la versión anterior
@@ -25,6 +26,12 @@ if [ -n "$(git status --porcelain -- . ../../scripts/deploy-frontend.sh)" ]; the
   echo "hay cambios sin commitear en frontend/web: commitee antes de desplegar"; exit 1
 fi
 rev=$(git rev-parse HEAD)
+# Y solo un commit que ya esté en GitHub (origin/master): el código que sirve
+# el dominio no puede existir únicamente en esta máquina.
+git fetch -q origin master
+if ! git merge-base --is-ancestor "$rev" origin/master; then
+  echo "el commit $rev no está en origin/master: fusione el PR (o haga push) antes de desplegar"; exit 1
+fi
 rm -rf .next-build
 NEXT_DIST_DIR=.next-build npx next build
 echo "$rev $(date -u +%FT%TZ)" > .next-build/REVISION
